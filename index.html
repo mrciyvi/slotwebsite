@@ -639,15 +639,8 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
     </div>
   </div> </div> ```
 
-### 2. რატომ აგდებს `isWild` ერორს?
-თუ HTML-ის გასწორების შემდეგაც ამოაგდო ეგ შეცდომა, დაამატე ეს "დამცავი" ხაზი შენს JavaScript-ში, სადაც `drawSym` ფუნქცია გაქვს (დაახლოებით 1240-ე ხაზზე):
 
-```javascript
-function drawSym(s, x, y, w, h) {
-    if (!s) return; // თუ სიმბოლო არ არსებობს, არაფერი ქნა
-    // ... დანარჩენი კოდი რაც გიწერია
 
-<!-- SLOT -->
 
 <div class="screen" id="sSlot">
 
@@ -1259,81 +1252,74 @@ function initSReels(){
 
  
 
-function drawSym(id,x,y,size,blur){
+function drawSym(id, x, y, size, blur) {
+  // --- დაცვის ხაზი: თუ id არ არსებობს SM მასივში, ფუნქცია აქ გაჩერდება ---
+  if (!id || !SM[id]) return; 
 
-  const s=SM[id];
-
+  const s = SM[id];
   sCtx.save();
 
   // cell bg
-
-  sCtx.fillStyle='#0c0800';
-
-  sCtx.beginPath();sCtx.roundRect(x,y,size,size,Math.max(5,size*.09));sCtx.fill();
+  sCtx.fillStyle = '#0c0800';
+  sCtx.beginPath();
+  sCtx.roundRect(x, y, size, size, Math.max(5, size * .09));
+  sCtx.fill();
 
   // glow border for specials
-
-  if(s.isWild){sCtx.shadowColor='rgba(255,215,0,.6)';sCtx.shadowBlur=14;}
-
-  else if(s.isScat){sCtx.shadowColor='rgba(0,229,255,.5)';sCtx.shadowBlur=12;}
-
-  else if(blur===0){sCtx.shadowColor=s.color;sCtx.shadowBlur=8;}
+  // აქაც დავამატე s-ის შემოწმება, რომ isWild-ზე არ "გაჭედოს"
+  if (s && s.isWild) {
+    sCtx.shadowColor = 'rgba(255,215,0,.6)';
+    sCtx.shadowBlur = 14;
+  } else if (s && s.isScat) {
+    sCtx.shadowColor = 'rgba(0,229,255,.5)';
+    sCtx.shadowBlur = 12;
+  } else if (blur === 0 && s) {
+    sCtx.shadowColor = s.color;
+    sCtx.shadowBlur = 8;
+  }
 
   // border
-
-  sCtx.strokeStyle=s.isWild?'rgba(255,215,0,.45)':s.isScat?'rgba(0,229,255,.4)':'rgba(255,255,255,.07)';
-
-  sCtx.lineWidth=1.5;
-
-  sCtx.beginPath();sCtx.roundRect(x+.75,y+.75,size-1.5,size-1.5,Math.max(5,size*.09));sCtx.stroke();
+  sCtx.strokeStyle = s.isWild ? 'rgba(255,215,0,.45)' : s.isScat ? 'rgba(0,229,255,.4)' : 'rgba(255,255,255,.07)';
+  sCtx.lineWidth = 1.5;
+  sCtx.beginPath();
+  sCtx.roundRect(x + .75, y + .75, size - 1.5, size - 1.5, Math.max(5, size * .09));
+  sCtx.stroke();
 
   // Symbol
-
-  if(s.txt){
-
+  if (s.txt) {
     // Text symbols (7, BAR)
-
-    const fsize=s.id==='seven'?size*.5:size*.28;
-
-    sCtx.font=`900 ${fsize}px Cinzel`;
-
-    sCtx.fillStyle=s.color;sCtx.textAlign='center';sCtx.textBaseline='middle';
-
-    sCtx.shadowColor=s.color;sCtx.shadowBlur=blur===0?16:0;
-
-    sCtx.fillText(s.e,x+size/2,y+size/2);
-
-  }else{
-
+    const fsize = s.id === 'seven' ? size * .5 : size * .28;
+    sCtx.font = `900 ${fsize}px Cinzel`;
+    sCtx.fillStyle = s.color;
+    sCtx.textAlign = 'center';
+    sCtx.textBaseline = 'middle';
+    sCtx.shadowColor = s.color;
+    sCtx.shadowBlur = blur === 0 ? 16 : 0;
+    sCtx.fillText(s.e, x + size / 2, y + size / 2);
+  } else {
     // Emoji symbols
-
-    sCtx.font=`${size*.6}px serif`;
-
-    sCtx.textAlign='center';sCtx.textBaseline='middle';sCtx.shadowBlur=0;
-
-    sCtx.fillText(s.e,x+size/2,y+size/2+(size*.03));
-
+    sCtx.font = `${size * .6}px serif`;
+    sCtx.textAlign = 'center';
+    sCtx.textBaseline = 'middle';
+    sCtx.shadowBlur = 0;
+    sCtx.fillText(s.e, x + size / 2, y + size / 2 + (size * .03));
   }
 
   // Wild overlay sparkle
-
-  if(s.isWild){
-
-    sCtx.font=`${size*.18}px serif`;
-
-    sCtx.fillText('✨',x+size*.12,y+size*.18);
-
-    sCtx.fillText('✨',x+size*.72,y+size*.74);
-
+  if (s.isWild) {
+    sCtx.font = `${size * .18}px serif`;
+    sCtx.fillText('✨', x + size * .12, y + size * .18);
+    sCtx.fillText('✨', x + size * .72, y + size * .74);
   }
 
   sCtx.restore();
-
 }
-
  
 
 function drawWinLines(){
+  if (!sCtx) return; // დაამატე ეს ხაზი
+  sWinLines.forEach((line,idx)=>{
+    // ... დანარჩენი კოდი უცვლელია
 
   sWinLines.forEach((line,idx)=>{
 
@@ -1444,29 +1430,25 @@ function slotLoop(ts){
  
 
 function goSlot(gameId){
-
-  getAC();
-
-  sCtx=document.getElementById('slotCanvas').getContext('2d');
-
-  initSReels();
-
-  showScreen('sSlot');updateHeader(true,true);
-
-  sWinLines=[];sLastWin=0;slotLoopActive=true;
-
-  sizeSlot();updateSlotUI();
-
-  document.getElementById('winBar').textContent='';
-
-  document.getElementById('winBar').classList.remove('on');
-
-  document.getElementById('sWin').textContent='₾0.00';
-
-  slotLastT=performance.now();
-
-  requestAnimationFrame(slotLoop);
-
+    rouLoopActive = false; // გათიშე რულეტკის ციკლი
+    getAC();
+    const canvas = document.getElementById('slotCanvas');
+    if(!canvas) return;
+    sCtx = canvas.getContext('2d');
+    
+    initSReels();
+    showScreen('sSlot');
+    updateHeader(true,true);
+    
+    sWinLines=[]; sLastWin=0; slotLoopActive=true;
+    sizeSlot(); updateSlotUI();
+    
+    document.getElementById('winBar').textContent='';
+    document.getElementById('winBar').classList.remove('on');
+    document.getElementById('sWin').textContent='₾0.00';
+    
+    slotLastT = performance.now();
+    requestAnimationFrame(slotLoop);
 }
 
  
@@ -1525,27 +1507,37 @@ function evalSlot(){
 
   let totalWin=0;const wonLines=[];
 
-  LINES.forEach(line=>{
+ // ... (ზედა ნაწილი უცვლელია)
+  LINES.forEach(line => {
+    const syms = line.map((row, col) => grid[col][row]);
+    let base = null;
+    let count = 0;
 
-    const syms=line.map((row,col)=>grid[col][row]);
+    for (let i = 0; i < syms.length; i++) {
+      const s = SM[syms[i]];
+      
+      // აი ეს არის დაცვის ხაზი, რომელიც უნდა ჩაამატო:
+      if (!s) break; 
 
-    let base=null;let count=0;
-
-    for(let i=0;i<syms.length;i++){
-
-      const s=SM[syms[i]];
-
-      if(!base&&!s.isWild&&!s.isScat)base=syms[i];
-
-      if(s.isWild||syms[i]===base)count++;
-
-      else break;
-
+      if (!base && !s.isWild && !s.isScat) base = syms[i];
+      
+      // აქ ემატება s-ის შემოწმება, რომ isWild-ზე არ გაჭედოს
+      if (s.isWild || syms[i] === base) {
+        count++;
+      } else {
+        break;
+      }
     }
 
-    if(count>=3&&base){const pay=SM[base].pay[count];if(pay){totalWin+=bet*pay;wonLines.push(line);}}
-
+    if (count >= 3 && base) {
+      const pay = SM[base].pay[count];
+      if (pay) {
+        totalWin += bet * pay;
+        wonLines.push(line);
+      }
+    }
   });
+  // ... (ქვედა ნაწილი უცვლელია)
 
   // Scatter (any position)
 
@@ -1649,20 +1641,26 @@ const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23
 const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 
 function goRoulette() {
+    slotLoopActive = false; // გათიშე სლოტის ციკლი
     showScreen('sRou');
     updateHeader(true, true);
     
-    // დაამატე ეს ხაზები:
     const canvas = document.getElementById('rouCanvas');
-    const container = canvas.parentElement;
-    const size = Math.min(container.clientWidth - 40, 400); 
-    canvas.width = size;
-    canvas.height = size;
+    if (!canvas) return;
+    rouCtx = canvas.getContext('2d');
     
+    // ზომის სწორი განსაზღვრა
+    const container = canvas.parentElement;
+    rouSZ = Math.min(container.clientWidth - 40, 400);
+    if (rouSZ <= 0) rouSZ = 350; // მინიმალური ზომა თუ კონტეინერი ვერ ზომავს
+    
+    canvas.width = rouSZ;
+    canvas.height = rouSZ;
+    
+    buildBetTable(); // მაგიდის აშენება
     rouLoopActive = true;
     requestAnimationFrame(rouLoop);
 }
-
 function initRou() {
     const canvas = document.getElementById('rouCanvas');
     if (!canvas) return;
@@ -1689,10 +1687,13 @@ function doRouSpin() {
 }
 
 function rouLoop(ts) {
-    if (!rouLoopActive) return;
-    rouCtx.clearRect(0, 0, rouSZ, rouSZ);
-    const cx = rouSZ / 2, cy = rouSZ / 2;
-    const radius = rouSZ / 2 - 10;
+    if (!rouLoopActive || !rouCtx) return;
+    
+    // დაამატე ეს უსაფრთხოების ზომა:
+    const currentSZ = rouSZ || 300; 
+    rouCtx.clearRect(0, 0, currentSZ, currentSZ);
+    const cx = currentSZ / 2, cy = currentSZ / 2;
+    const radius = Math.max(10, currentSZ / 2 - 10); // რადიუსი მინუსში აღარ წავა
 
     // 1. ბორბლის მოძრაობის ლოგიკა
     if (rouSpinning || ballVel > 0.005) {
