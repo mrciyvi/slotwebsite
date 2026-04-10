@@ -1741,7 +1741,19 @@ setInterval(()=>{
 })();
 
 </script>
-
+<script>
+  // თუ მთავარ სკრიპტში შეცდომაა, ეს მაინც იმუშავებს
+  function goRoulette() {
+      if (window.goRoulette && typeof window.goRoulette === 'function') {
+          window.goRoulette();
+      } else {
+          // თუ მთავარი ფუნქცია მაინც ვერ ჩაიტვირთა, ხელით გადავრთოთ
+          document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+          document.getElementById('sRou').classList.add('active');
+          alert("კოდში სინტაქსური შეცდომაა, რულეტკის ლოგიკა ვერ ჩაიტვირთა!");
+      }
+  }
+</script>
 </body>
 
 </html>
