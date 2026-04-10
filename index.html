@@ -1570,17 +1570,20 @@ function doRouSpin() {
     if (window.sndSpin) sndSpin();
 }
 
-function rouLoop() {
+function rouLoop(ts) {
     if (!rouLoopActive) return;
     rouCtx.clearRect(0, 0, rouSZ, rouSZ);
     const cx = rouSZ / 2, cy = rouSZ / 2;
+    const radius = rouSZ / 2 - 10;
 
-    // ბორბლის და ბურთის მოძრაობა
+    // 1. ბორბლის მოძრაობის ლოგიკა
     if (rouSpinning || ballVel > 0.005) {
-        rouAngle += rouVel; rouVel *= 0.996;
+        rouAngle += rouVel; rouVel *= 0.998;
         ballAngle -= ballVel; ballVel *= 0.992;
-        const R = rouSZ / 2 * 0.9;
-        ballR = R * 0.85;
+        
+        // ბურთი ნელ-ნელა ეშვება ნომრებისკენ
+        const R = radius * 0.9;
+        ballR = R * 0.85; 
 
         if (ballVel < 0.005 && rouSpinning) {
             rouSpinning = false;
@@ -1588,31 +1591,69 @@ function rouLoop() {
         }
     }
 
-    // ბორბლის ვიზუალი (მარტივი)
+    // 2. ბორბლის (სექტორების და ციფრების) ხატვა
     rouCtx.save();
     rouCtx.translate(cx, cy);
-    rouCtx.rotate(rouAngle);
+    rouCtx.rotate(rouAngle); // ბორბალი ტრიალებს
+
+    const slice = (Math.PI * 2) / 37;
+
+    for (let i = 0; i < 37; i++) {
+        const ang = i * slice;
+        
+        // სექტორის ფონი
+        rouCtx.beginPath();
+        rouCtx.moveTo(0, 0);
+        rouCtx.arc(0, 0, radius, ang, ang + slice);
+        rouCtx.closePath();
+        
+        // ფერების განსაზღვრა
+        const num = WHEEL[i];
+        if (num === 0) rouCtx.fillStyle = '#008800'; // მწვანე
+        else if (REDS.has(num)) rouCtx.fillStyle = '#aa0000'; // წითელი
+        else rouCtx.fillStyle = '#111111'; // შავი
+        
+        rouCtx.fill();
+        rouCtx.strokeStyle = 'rgba(212, 160, 23, 0.4)';
+        rouCtx.lineWidth = 1;
+        rouCtx.stroke();
+
+        // ციფრების დაწერა ბორბალზე
+        rouCtx.save();
+        rouCtx.rotate(ang + slice / 2);
+        rouCtx.fillStyle = "#fff";
+        rouCtx.font = `bold ${rouSZ / 22}px Cinzel`;
+        rouCtx.textAlign = "right";
+        rouCtx.fillText(num, radius - 15, 5); // ციფრები კიდესთან ახლოს
+        rouCtx.restore();
+    }
+
+    // შიდა ოქროსფერი რგოლი (დეკორაცია)
     rouCtx.beginPath();
-    rouCtx.arc(0, 0, rouSZ / 2 - 5, 0, Math.PI * 2);
+    rouCtx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
     rouCtx.strokeStyle = '#d4a017';
-    rouCtx.lineWidth = 8;
+    rouCtx.lineWidth = 3;
     rouCtx.stroke();
+    
     rouCtx.restore();
 
-    // ბურთის ვიზუალი
+    // 3. ბურთის ხატვა (ის არ ტრიალებს ბორბალთან ერთად, აქვს თავისი ტრაექტორია)
     if (ballVel > 0.001 || rouSpinning) {
         const bx = cx + Math.cos(ballAngle) * ballR;
         const by = cy + Math.sin(ballAngle) * ballR;
+        
+        // ბურთის ჩრდილი და ეფექტი
         rouCtx.beginPath();
         rouCtx.arc(bx, by, 6, 0, Math.PI * 2);
-        rouCtx.fillStyle = '#fff';
+        rouCtx.fillStyle = '#ffffff';
+        rouCtx.shadowBlur = 15;
+        rouCtx.shadowColor = "#ffffff";
         rouCtx.fill();
-        rouCtx.shadowBlur = 10; rouCtx.shadowColor = "#fff";
+        rouCtx.shadowBlur = 0; // გავთიშოთ ჩრდილი სხვა ელემენტებისთვის
     }
 
     requestAnimationFrame(rouLoop);
 }
-
 function findResult() {
     // მათემატიკურად გამოგვყავს რომელი ნომერია
     const diff = (rouAngle - ballAngle) % (Math.PI * 2);
