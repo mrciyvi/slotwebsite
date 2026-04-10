@@ -1489,25 +1489,19 @@ function doSlotSpin(){
 
  
 
-function evalSlot(){
+function evalSlot() {
+  const u = getCur();
+  if (!u) return;
+  const bet = SBETS[sBetIdx];
 
-  const u=getCur();if(!u)return;
-
-  const bet=SBETS[sBetIdx];
-
-  // Read visible grid
-
-  const grid=sReels.map(r=>{
-
-    const si=Math.floor(r.offset/STEP);
-
-    return Array.from({length:NROW},(_,row)=>r.strip[((SLEN-si+row)%SLEN+SLEN)%SLEN]);
-
+  const grid = sReels.map(r => {
+    const si = Math.floor(r.offset / STEP);
+    return Array.from({ length: NROW }, (_, row) => r.strip[((SLEN - si + row) % SLEN + SLEN) % SLEN]);
   });
 
-  let totalWin=0;const wonLines=[];
+  let totalWin = 0;
+  const wonLines = [];
 
- // ... (ზედა ნაწილი უცვლელია)
   LINES.forEach(line => {
     const syms = line.map((row, col) => grid[col][row]);
     let base = null;
@@ -1515,13 +1509,8 @@ function evalSlot(){
 
     for (let i = 0; i < syms.length; i++) {
       const s = SM[syms[i]];
-      
-      // აი ეს არის დაცვის ხაზი, რომელიც უნდა ჩაამატო:
-      if (!s) break; 
-
+      if (!s) break;
       if (!base && !s.isWild && !s.isScat) base = syms[i];
-      
-      // აქ ემატება s-ის შემოწმება, რომ isWild-ზე არ გაჭედოს
       if (s.isWild || syms[i] === base) {
         count++;
       } else {
@@ -1537,48 +1526,42 @@ function evalSlot(){
       }
     }
   });
-  // ... (ქვედა ნაწილი უცვლელია)
 
-  // Scatter (any position)
-
-  const sc=grid.flat().filter(s=>s==='scat').length;
-
-  if(sc>=3){const sp=SM['scat'].pay[Math.min(sc,5)];if(sp)totalWin+=bet*sp;}
-
-  // Jackpot chance
-
-  if(Math.random()<.0008){
-
-    const j=getJack();totalWin+=j;setJack(600+Math.random()*1400);
-
-    showMega('ჯეკპოტი! 🎰',j);spawnCoins(innerWidth/2,innerHeight/2,80);
-
+  const sc = grid.flat().filter(s => s === 'scat').length;
+  if (sc >= 3) {
+    const sp = SM['scat'].pay[Math.min(sc, 5)];
+    if (sp) totalWin += bet * sp;
   }
 
-  if(totalWin>0){
-
-    sLastWin=totalWin;setBal(u,getBal(u)+totalWin);sWinLines=wonLines;
-
-    showWinBar('🏆 გამარჯვება! +'+fmtM(totalWin));
-
-    document.getElementById('sWin').textContent=fmtM(totalWin);
-
-    if(totalWin>=bet*15){showMega('დიდი მოგება! 💰',totalWin);spawnCoins(innerWidth/2,300,70);}
-
-    else{sndWin();spawnCoins(innerWidth/2,300,28);}
-
-    addHist({game:'სლოტი',win:totalWin});
-
-  }else{
-
-    sWinLines=[];showWinBar('');sndLose();
-
-    addHist({game:'სლოტი',win:-bet});
-
+  if (Math.random() < .0008) {
+    const j = getJack();
+    totalWin += j;
+    setJack(600 + Math.random() * 1400);
+    showMega('ჯეკპოტი! 🎰', j);
+    spawnCoins(innerWidth / 2, innerHeight / 2, 80);
   }
 
+  if (totalWin > 0) {
+    sLastWin = totalWin;
+    setBal(u, getBal(u) + totalWin);
+    sWinLines = wonLines;
+    showWinBar('🏆 გამარჯვება! +' + fmtM(totalWin));
+    document.getElementById('sWin').textContent = fmtM(totalWin);
+    if (totalWin >= bet * 15) {
+      showMega('დიდი მოგება! 💰', totalWin);
+      spawnCoins(innerWidth / 2, 300, 70);
+    } else {
+      sndWin();
+      spawnCoins(innerWidth / 2, 300, 28);
+    }
+    addHist({ game: 'სლოტი', win: totalWin });
+  } else {
+    sWinLines = [];
+    showWinBar('');
+    sndLose();
+    addHist({ game: 'სლოტი', win: -bet });
+  }
   updateSlotUI();
-
 }
 
  
