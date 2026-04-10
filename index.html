@@ -405,6 +405,28 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 </style>
 
 </head>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBEQnl0YOxLEchYsdDmbrqKGFvALSyvLfA",
+    authDomain: "slotmachine-a9ff4.firebaseapp.com",
+    databaseURL: "https://slotmachine-a9ff4-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "slotmachine-a9ff4",
+    storageBucket: "slotmachine-a9ff4.firebasestorage.app",
+    messagingSenderId: "1053857390923",
+    appId: "1:1053857390923:web:5d37a845dd4f370cc948ce",
+    measurementId: "G-QTBG5HQ5PM"
+  };
+
+  // მნიშვნელოვანი: ეს ცვლადი უნდა იყოს გლობალური (window.db)
+  firebase.initializeApp(firebaseConfig);
+  window.db = firebase.database(); 
+  console.log("Firebase მზად არის!");
+</script>
+
+<script src="app.js"></script>
 
 <body>
 
@@ -1907,26 +1929,6 @@ setInterval(()=>{
 
 </script>
   
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-
-<script>
-  // შენი პირადი კონფიგურაცია
-  const firebaseConfig = {
-    apiKey: "AIzaSyBEQnl0YOxLEchYsdDmbrqKGFvALSyvLfA",
-    authDomain: "slotmachine-a9ff4.firebaseapp.com",
-    databaseURL: "https://slotmachine-a9ff4-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "slotmachine-a9ff4",
-    storageBucket: "slotmachine-a9ff4.firebasestorage.app",
-    messagingSenderId: "1053857390923",
-    appId: "1:1053857390923:web:5d37a845dd4f370cc948ce",
-    measurementId: "G-QTBG5HQ5PM"
-  };
-
-  // ინიციალიზაცია
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database(); // აი, ეს "db" დაგვჭირდება მონაცემებისთვის
-</script>
 </body>
 
 </html>
