@@ -1,0 +1,599 @@
+<!doctype html>
+<html lang="ka">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Chaos Slotmachine — Demo</title>
+<link rel="icon" href="data:;base64,iVBORw0KGgo=">
+<style>
+  /* Basic UI */
+  :root{
+    --bg:#071018;--card:#0f1720;--muted:#9aa4b2;--accent:#ffd700;
+    --glass: rgba(255,255,255,0.03);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;background:linear-gradient(180deg,#02030a,#071018);color:#e6eef6}
+  .app{max-width:1100px;margin:28px auto;padding:18px;display:grid;grid-template-columns:1fr 360px;gap:18px}
+  header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+  h1{margin:0;color:var(--accent);font-size:20px}
+  .desc{color:var(--muted);font-size:13px}
+  .panel{background:linear-gradient(180deg,#071018,#0b0f12);padding:14px;border-radius:12px;border:1px solid var(--glass)}
+  .sidebar{padding:14px}
+  .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:none;background:#2b6cff;color:#fff;cursor:pointer;font-weight:600}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+  .muted{color:var(--muted)}
+  /* Login/Register */
+  .auth{max-width:420px;margin:40px auto;padding:18px;border-radius:12px;background:linear-gradient(180deg,#071018,#0b0f12);border:1px solid var(--glass)}
+  .field{display:flex;flex-direction:column;margin-bottom:10px}
+  .field label{font-size:13px;color:var(--muted);margin-bottom:6px}
+  .field input{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff}
+  /* Dashboard */
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .slot-card{background:linear-gradient(180deg,#0b1220,#071018);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 8px 30px rgba(0,0,0,0.5)}
+  .slot-card img{width:100%;height:120px;object-fit:cover;border-radius:6px;background:#000}
+  .slot-card h3{margin:8px 0 6px;font-size:15px;color:#ffdca3}
+  .slot-meta{display:flex;justify-content:space-between;align-items:center}
+  /* Balance */
+  .balance{position:fixed;right:18px;top:18px;background:linear-gradient(90deg,#0b1220,#071018);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 8px 30px rgba(0,0,0,0.6);z-index:999}
+  .balance strong{color:var(--accent);font-size:18px}
+  .profile{margin-top:12px}
+  /* Slot game */
+  .game-wrap{display:grid;grid-template-columns:1fr 320px;gap:12px}
+  .reels{background:#07121a;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  .reel-row{display:flex;gap:8px;justify-content:center;margin-bottom:8px}
+  .reel{width:84px;height:84px;background:#0b0f12;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;border:1px solid rgba(255,255,255,0.03)}
+  .controls{background:#07121a;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  .select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff}
+  .small{font-size:13px;color:var(--muted)}
+  .log{height:120px;overflow:auto;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;margin-top:8px;font-size:13px}
+  /* modal */
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:9999}
+  .modal .panel{width:720px;max-width:95%}
+  footer{grid-column:1/-1;margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
+  @media (max-width:980px){.app{grid-template-columns:1fr}.balance{position:static;margin:12px auto;display:flex;justify-content:center}}
+</style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="balanceWidget" class="balance" style="display:none">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:44px;height:44;border-radius:8px;background:linear-gradient(90deg,#ffd700,#ffb86b);display:flex;align-items:center;justify-content:center;color:#04120a;font-weight:800">₾</div>
+      <div>
+        <div class="small muted">Balance</div>
+        <div><strong id="balanceAmount">0</strong></div>
+      </div>
+    </div>
+    <div class="profile small" style="margin-top:8px">
+      <div id="profileName" style="font-weight:700"></div>
+      <div id="profileEmail" class="muted" style="font-size:12px"></div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <button id="btnProfile" class="btn-ghost btn" style="padding:6px 8px">Profile</button>
+        <button id="btnLogout" class="btn-ghost btn" style="padding:6px 8px">Logout</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* =========================
+   Simple SPA + Data model
+   ========================= */
+const STORAGE_KEYS = {
+  USERS: 'cs_users_v1',
+  CURRENT: 'cs_current_v1',
+  BALANCES: 'cs_balances_v1',
+  JACKPOT: 'cs_jackpot_v1'
+};
+
+const DEFAULT_BALANCE = 100.0;
+
+/* Utilities */
+function $(sel, root=document) { return root.querySelector(sel); }
+function $all(sel, root=document) { return Array.from(root.querySelectorAll(sel)); }
+function save(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
+function load(key, def){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; }catch(e){ return def; } }
+function formatMoney(n){ return Number(n).toFixed(2) + ' ₾'; }
+
+/* Data helpers */
+function getUsers(){ return load(STORAGE_KEYS.USERS, {}); }
+function saveUsers(u){ save(STORAGE_KEYS.USERS, u); }
+function getCurrent(){ return load(STORAGE_KEYS.CURRENT, null); }
+function setCurrent(name){ save(STORAGE_KEYS.CURRENT, name); renderBalanceWidget(); }
+function getBalances(){ return load(STORAGE_KEYS.BALANCES, {}); }
+function setBalanceFor(user, amount){ const b = getBalances(); b[user] = Number(amount); save(STORAGE_KEYS.BALANCES, b); renderBalanceWidget(); }
+function getBalanceFor(user){ const b = getBalances(); if (b[user] == null) { b[user] = DEFAULT_BALANCE; save(STORAGE_KEYS.BALANCES, b); } return Number(b[user]); }
+function getJackpot(){ return Number(localStorage.getItem(STORAGE_KEYS.JACKPOT) || 1000); }
+function setJackpot(v){ localStorage.setItem(STORAGE_KEYS.JACKPOT, Math.max(0, Number(v))); renderBalanceWidget(); }
+
+/* Init jackpot if missing */
+if (!localStorage.getItem(STORAGE_KEYS.JACKPOT)) setJackpot(1000);
+
+/* Audio: simple WebAudio for effects */
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function beep(freq=440, time=0.08, type='sine', gain=0.08){
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.value = gain;
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(); o.stop(audioCtx.currentTime + time);
+}
+
+/* SPA rendering */
+const app = document.getElementById('app');
+
+function navigate(route){
+  window.location.hash = route;
+  render();
+}
+
+function render(){
+  const hash = location.hash.replace('#','') || 'login';
+  if (hash.startsWith('slot/')) {
+    const id = hash.split('/')[1];
+    renderSlot(id);
+  } else if (hash === 'dashboard') {
+    renderDashboard();
+  } else if (hash === 'login') {
+    renderAuth();
+  } else {
+    renderAuth();
+  }
+  renderBalanceWidget();
+}
+
+/* AUTH UI */
+function renderAuth(){
+  app.innerHTML = `
+    <div class="auth panel">
+      <h2 style="margin:0 0 8px">Welcome to Chaos Slotmachine</h2>
+      <div class="desc muted">Register or login to start playing. Balance persists locally on your device.</div>
+      <div style="display:flex;gap:12px;margin-top:12px">
+        <button id="showLogin" class="btn">Login</button>
+        <button id="showRegister" class="btn btn-ghost">Register</button>
+      </div>
+      <div id="authArea" style="margin-top:14px"></div>
+    </div>
+  `;
+  $('#showLogin').onclick = ()=> showLoginForm();
+  $('#showRegister').onclick = ()=> showRegisterForm();
+  const cur = getCurrent();
+  if (cur) {
+    // quick link to dashboard
+    const area = $('#authArea');
+    area.innerHTML = `<div style="margin-top:12px" class="muted">You are logged in as <strong>${cur}</strong>. <button id="toDash" class="btn" style="margin-left:8px">Go to Dashboard</button></div>`;
+    $('#toDash').onclick = ()=> navigate('dashboard');
+  }
+}
+
+function showLoginForm(){
+  const area = $('#authArea');
+  area.innerHTML = `
+    <div style="margin-top:12px">
+      <div class="field"><label>Email</label><input id="liEmail" type="email" /></div>
+      <div class="field"><label>Password</label><input id="liPass" type="password" /></div>
+      <div style="display:flex;gap:8px"><button id="doLogin" class="btn">Login</button><button id="cancel" class="btn-ghost btn">Cancel</button></div>
+      <div id="loginMsg" class="muted small" style="margin-top:8px"></div>
+    </div>
+  `;
+  $('#cancel').onclick = ()=> { $('#authArea').innerHTML=''; };
+  $('#doLogin').onclick = ()=> {
+    const email = $('#liEmail').value.trim().toLowerCase();
+    const pass = $('#liPass').value;
+    const users = getUsers();
+    const found = Object.values(users).find(u => u.email === email && u.password === pass);
+    if (found) {
+      setCurrent(found.username);
+      $('#loginMsg').textContent = 'Login successful. Redirecting...';
+      setTimeout(()=> navigate('dashboard'), 600);
+    } else {
+      $('#loginMsg').textContent = 'Invalid credentials.';
+      beep(220,0.12,'sawtooth',0.12);
+    }
+  };
+}
+
+function showRegisterForm(){
+  const area = $('#authArea');
+  area.innerHTML = `
+    <div style="margin-top:12px">
+      <div class="field"><label>Full name</label><input id="rName" type="text" /></div>
+      <div class="field"><label>Email</label><input id="rEmail" type="email" /></div>
+      <div class="field"><label>Username</label><input id="rUser" type="text" /></div>
+      <div class="field"><label>Password</label><input id="rPass" type="password" /></div>
+      <div style="display:flex;gap:8px"><button id="doReg" class="btn">Register</button><button id="cancel2" class="btn-ghost btn">Cancel</button></div>
+      <div id="regMsg" class="muted small" style="margin-top:8px"></div>
+    </div>
+  `;
+  $('#cancel2').onclick = ()=> { $('#authArea').innerHTML=''; };
+  $('#doReg').onclick = ()=> {
+    const name = $('#rName').value.trim();
+    const email = $('#rEmail').value.trim().toLowerCase();
+    const username = $('#rUser').value.trim();
+    const pass = $('#rPass').value;
+    if (!name || !email || !username || !pass) { $('#regMsg').textContent = 'Fill all fields.'; return; }
+    const users = getUsers();
+    if (users[username]) { $('#regMsg').textContent = 'Username taken.'; return; }
+    if (Object.values(users).some(u=>u.email===email)) { $('#regMsg').textContent = 'Email already used.'; return; }
+    users[username] = { username, name, email, password: pass };
+    saveUsers(users);
+    // set initial balance
+    const balances = getBalances(); balances[username] = DEFAULT_BALANCE; save(STORAGE_KEYS.BALANCES, balances);
+    setCurrent(username);
+    $('#regMsg').textContent = 'Registered. Redirecting to dashboard...';
+    beep(880,0.08,'sine',0.08);
+    setTimeout(()=> navigate('dashboard'), 700);
+  };
+}
+
+/* Balance widget */
+function renderBalanceWidget(){
+  const cur = getCurrent();
+  const widget = document.getElementById('balanceWidget');
+  if (!cur) { widget.style.display='none'; return; }
+  widget.style.display='block';
+  $('#balanceAmount').textContent = formatMoney(getBalanceFor(cur));
+  const users = getUsers();
+  const u = users[cur] || { name: cur, email: '' };
+  $('#profileName').textContent = u.name || cur;
+  $('#profileEmail').textContent = u.email || '';
+  $('#btnLogout').onclick = ()=> { setCurrent(null); localStorage.removeItem(STORAGE_KEYS.CURRENT); render(); };
+  $('#btnProfile').onclick = ()=> showProfileModal(u);
+}
+
+/* Profile modal */
+function showProfileModal(user){
+  const modal = document.createElement('div'); modal.className='modal';
+  modal.innerHTML = `<div class="panel">
+    <h3 style="margin:0 0 8px">Profile</h3>
+    <div class="small muted">Name</div><div style="font-weight:700">${user.name}</div>
+    <div class="small muted" style="margin-top:8px">Email</div><div>${user.email}</div>
+    <div style="margin-top:12px;display:flex;gap:8px"><button id="closeProf" class="btn">Close</button></div>
+  </div>`;
+  document.body.appendChild(modal);
+  $('#closeProf').onclick = ()=> modal.remove();
+}
+
+/* Dashboard */
+const SAMPLE_SLOTS = [
+  { id:'classic', title:'Classic Reels', img:'', desc:'Simple 3x3 slot with gamble and jackpot.' },
+  { id:'egt-like', title:'EGT Inspired', img:'', desc:'Advanced slot with paylines, bonus and sounds.' },
+  { id:'highroller', title:'High Roller', img:'', desc:'Higher variance, bigger jackpot.' }
+];
+
+function renderDashboard(){
+  const cur = getCurrent();
+  if (!cur) { navigate('login'); return; }
+  app.innerHTML = `
+    <div class="app">
+      <header><div><h1>Dashboard</h1><div class="desc muted">Choose a slot and play. Balance persists locally.</div></div><div class="small muted">User: <strong>${cur}</strong></div></header>
+      <section class="panel">
+        <h3 style="margin-top:0">Available Slots</h3>
+        <div class="slots" id="slotsList"></div>
+      </section>
+      <aside class="sidebar panel">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div class="small muted">Jackpot</div><div style="font-weight:800;color:#ffd700" id="jackpotVal">${formatMoney(getJackpot())}</div></div>
+          <div><button class="btn" id="refreshBtn">Refresh</button></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="small muted">Quick actions</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-ghost" id="addFunds">+ Add 50₾</button>
+            <button class="btn btn-ghost" id="withdraw" style="opacity:0.8">- Withdraw 50₾</button>
+          </div>
+        </div>
+        <div style="margin-top:12px" class="small muted">Profile</div>
+        <div style="margin-top:8px"><button class="btn" id="openProfile">Open Profile</button></div>
+      </aside>
+      <footer>Built as static demo — no backend. Balance stored locally.</footer>
+    </div>
+  `;
+  const list = $('#slotsList');
+  SAMPLE_SLOTS.forEach(s=>{
+    const card = document.createElement('div'); card.className='slot-card';
+    card.innerHTML = `<img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='300'><rect width='100%' height='100%' fill='%230b1220'/><text x='50%' y='50%' fill='%23ffdca3' font-size='28' font-family='Arial' text-anchor='middle' dominant-baseline='middle'>${encodeURIComponent(s.title)}</text></svg>" alt="${s.title}"><h3>${s.title}</h3><div class="muted" style="font-size:13px">${s.desc}</div><div class="slot-meta" style="margin-top:8px"><button class="btn" data-id="${s.id}">Play</button><div class="small muted">Volatility: medium</div></div>`;
+    list.appendChild(card);
+  });
+  // actions
+  $all('.slot-card .btn').forEach(b=> b.onclick = (e)=> {
+    const id = e.currentTarget.dataset.id;
+    navigate('slot/' + id);
+  });
+  $('#refreshBtn').onclick = ()=> { $('#jackpotVal').textContent = formatMoney(getJackpot()); beep(660,0.06); };
+  $('#addFunds').onclick = ()=> {
+    const cur = getCurrent();
+    const bal = getBalanceFor(cur) + 50;
+    setBalanceFor(cur, bal);
+    beep(880,0.06);
+  };
+  $('#withdraw').onclick = ()=> {
+    const cur = getCurrent();
+    const bal = Math.max(0, getBalanceFor(cur) - 50);
+    setBalanceFor(cur, bal);
+    beep(220,0.06);
+  };
+  $('#openProfile').onclick = ()=> showProfileModal(getUsers()[getCurrent()]);
+}
+
+/* Slot game renderer */
+function renderSlot(id){
+  const cur = getCurrent();
+  if (!cur) { navigate('login'); return; }
+  // slot config defaults
+  const config = {
+    reels: 5,
+    rows: 3,
+    symbols: ['A','K','Q','J','10','7','BAR','BONUS','CHERRY'],
+    paylines: 10,
+    minLines: 5,
+    maxLines: 20,
+    betOptions: [0.5,1,2,5,10,20],
+    jackpotChance: 0.0005 // base chance per spin to hit jackpot
+  };
+  app.innerHTML = `
+    <div class="app">
+      <header><div><h1>Playing: ${id}</h1><div class="desc muted">Slot: ${id} — choose bet, lines and spin.</div></div><div class="small muted">User: <strong>${cur}</strong></div></header>
+      <section class="panel" style="grid-column:1/2">
+        <div class="game-wrap">
+          <div>
+            <div class="reels panel" id="reelsArea">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+                <div class="small muted">Reels: ${config.reels} x ${config.rows}</div>
+                <div class="small muted">Lines: <span id="linesCount">${config.paylines}</span></div>
+              </div>
+              <div id="reelGrid"></div>
+              <div style="display:flex;gap:8px;margin-top:8px">
+                <button id="spinBtn" class="btn">Spin</button>
+                <button id="autoBtn" class="btn btn-ghost">Auto x10</button>
+                <button id="collectBtn" class="btn btn-ghost">Collect</button>
+              </div>
+              <div class="log" id="gameLog"></div>
+            </div>
+          </div>
+          <div class="controls panel">
+            <div class="small muted">Bet per line</div>
+            <select id="betSelect" class="select"></select>
+            <div style="margin-top:8px" class="small muted">Lines (5–20)</div>
+            <input id="linesRange" type="range" min="${config.minLines}" max="${config.maxLines}" value="${config.paylines}" style="width:100%;margin-top:6px" />
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+              <div><div class="small muted">Total Bet</div><div id="totalBet" style="font-weight:800">0</div></div>
+              <div><div class="small muted">Last Win</div><div id="lastWin" style="font-weight:800">0</div></div>
+            </div>
+            <div style="margin-top:12px">
+              <div class="small muted">Gamble (after win)</div>
+              <div style="display:flex;gap:8px;margin-top:6px">
+                <button id="gambleRed" class="btn btn-ghost">Red</button>
+                <button id="gambleBlack" class="btn btn-ghost">Black</button>
+              </div>
+            </div>
+            <div style="margin-top:12px">
+              <div class="small muted">Bonus</div>
+              <div id="bonusInfo" class="muted small">Hit 3 BONUS symbols for free spins.</div>
+            </div>
+            <div style="margin-top:12px">
+              <div class="small muted">Jackpot</div>
+              <div id="jackpotPanel" style="font-weight:800;color:#ffd700">${formatMoney(getJackpot())}</div>
+            </div>
+          </div>
+        </div>
+      </section>
+      <aside class="sidebar panel">
+        <div class="small muted">Balance</div>
+        <div style="font-weight:800;font-size:18px" id="gameBalance">${formatMoney(getBalanceFor(cur))}</div>
+        <div style="margin-top:12px">
+          <div class="small muted">Profile</div>
+          <div style="margin-top:6px"><button class="btn" id="openProfile2">Profile</button></div>
+        </div>
+        <div style="margin-top:12px">
+          <div class="small muted">Quick</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn btn-ghost" id="add10">+10₾</button>
+            <button class="btn btn-ghost" id="resetBal">Reset to 100₾</button>
+          </div>
+        </div>
+      </aside>
+      <footer style="grid-column:1/-1" class="muted small">Slot engine: simplified demo. All state saved locally.</footer>
+    </div>
+  `;
+
+  /* populate controls */
+  const betSelect = $('#betSelect');
+  config.betOptions.forEach(b=> { const o = document.createElement('option'); o.value = b; o.textContent = b + ' ₾'; betSelect.appendChild(o); });
+  $('#linesRange').value = config.paylines;
+  $('#linesCount').textContent = config.paylines;
+  updateTotalBet();
+
+  /* render reels grid */
+  const reelGrid = $('#reelGrid');
+  function drawReelsGrid(matrix){
+    reelGrid.innerHTML = '';
+    for (let r=0;r<config.rows;r++){
+      const row = document.createElement('div'); row.className='reel-row';
+      for (let c=0;c<config.reels;c++){
+        const cell = document.createElement('div'); cell.className='reel';
+        cell.textContent = matrix && matrix[c] ? matrix[c][r] : '—';
+        row.appendChild(cell);
+      }
+      reelGrid.appendChild(row);
+    }
+  }
+  // initial empty
+  drawReelsGrid();
+
+  /* game state */
+  let autoCount = 0;
+  let lastWin = 0;
+  let freeSpins = 0;
+
+  function updateTotalBet(){
+    const lines = Number($('#linesRange').value);
+    const bet = Number(betSelect.value);
+    $('#totalBet').textContent = formatMoney(lines * bet);
+  }
+  betSelect.onchange = updateTotalBet;
+  $('#linesRange').oninput = ()=> { $('#linesCount').textContent = $('#linesRange').value; updateTotalBet(); };
+
+  function log(msg){
+    const el = $('#gameLog');
+    const time = new Date().toLocaleTimeString();
+    el.innerHTML = `<div style="margin-bottom:6px"><span class="muted" style="margin-right:8px">${time}</span>${msg}</div>` + el.innerHTML;
+  }
+
+  function spinOnce(){
+    const user = getCurrent();
+    const balance = getBalanceFor(user);
+    const lines = Number($('#linesRange').value);
+    const bet = Number(betSelect.value);
+    const totalBet = lines * bet;
+    if (totalBet <= 0) { log('Set a bet first'); beep(220,0.06); return; }
+    if (balance < totalBet) { log('Insufficient balance'); beep(220,0.12); return; }
+    // debit
+    setBalanceFor(user, balance - totalBet);
+    $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
+    // spin logic: generate matrix [reel][rows]
+    const symbols = config.symbols;
+    const matrix = [];
+    for (let c=0;c<config.reels;c++){
+      matrix[c] = [];
+      for (let r=0;r<config.rows;r++){
+        // weighted random: make high symbols rarer
+        const rnd = Math.random();
+        let sym;
+        if (rnd < 0.02) sym = 'JACK'; // very rare
+        else if (rnd < 0.08) sym = 'BONUS';
+        else if (rnd < 0.20) sym = 'CHERRY';
+        else sym = symbols[Math.floor(Math.random()*symbols.length)];
+        matrix[c][r] = sym;
+      }
+    }
+    drawReelsGrid(matrix);
+    beep(600,0.06,'sine',0.06);
+    // evaluate wins: simple rule: count matching symbols on middle row across first 3 reels for demo
+    const middleRow = Math.floor(config.rows/2);
+    const midSymbols = matrix.map(col => col[middleRow]);
+    // simple paytable
+    const paytable = { 'JACK': 500, 'BONUS':0, 'CHERRY': 5, 'A': 3, 'K':2, 'Q':2, 'J':1, '10':1, '7':2, 'BAR':10 };
+    // count longest run from left
+    let runSym = midSymbols[0], runLen=1;
+    for (let i=1;i<midSymbols.length;i++){
+      if (midSymbols[i] === runSym) runLen++; else break;
+    }
+    let win = 0;
+    if (paytable[runSym] && runLen>=3) {
+      win = paytable[runSym] * bet * runLen;
+    }
+    // bonus: if 3+ BONUS anywhere -> free spins
+    const bonusCount = matrix.flat().filter(s=>s==='BONUS').length;
+    if (bonusCount >= 3) {
+      freeSpins += 5;
+      log(`BONUS! You won 5 free spins (found ${bonusCount} BONUS).`);
+      beep(1200,0.12,'sine',0.12);
+    }
+    // jackpot chance
+    const jackpot = getJackpot();
+    if (Math.random() < config.jackpotChance) {
+      // award jackpot
+      const jwin = jackpot;
+      setBalanceFor(user, getBalanceFor(user) + jwin);
+      setJackpot(1000); // reset
+      log(`JACKPOT! You won ${formatMoney(jwin)}!`);
+      lastWin = jwin;
+      $('#lastWin').textContent = formatMoney(lastWin);
+      $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
+      beep(200,0.4,'sine',0.18);
+      return;
+    } else {
+      // small contribution to jackpot
+      setJackpot(getJackpot() + totalBet * 0.02);
+      $('#jackpotPanel').textContent = formatMoney(getJackpot());
+    }
+    // apply win
+    if (win > 0) {
+      setBalanceFor(user, getBalanceFor(user) + win);
+      lastWin = win;
+      $('#lastWin').textContent = formatMoney(lastWin);
+      $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
+      log(`Win: ${formatMoney(win)} (symbol ${runSym} x${runLen})`);
+      beep(1000,0.12,'triangle',0.12);
+    } else {
+      lastWin = 0;
+      $('#lastWin').textContent = formatMoney(0);
+      log(`No win. Spent ${formatMoney(totalBet)}.`);
+      beep(180,0.06,'sawtooth',0.06);
+    }
+  }
+
+  $('#spinBtn').onclick = ()=> {
+    if (freeSpins > 0) {
+      freeSpins--;
+      log('Free spin used. Remaining: ' + freeSpins);
+      spinOnce();
+    } else {
+      spinOnce();
+    }
+  };
+
+  $('#autoBtn').onclick = ()=> {
+    autoCount = 10;
+    const runAuto = ()=> {
+      if (autoCount <= 0) return;
+      spinOnce();
+      autoCount--;
+      setTimeout(()=> runAuto(), 700);
+    };
+    runAuto();
+  };
+
+  $('#collectBtn').onclick = ()=> {
+    // collect last win (already added to balance), but allow gamble
+    log('Collect pressed. You can gamble last win by choosing Red/Black.');
+  };
+
+  // gamble red/black: 50/50 on lastWin
+  $('#gambleRed').onclick = ()=> doGamble('red');
+  $('#gambleBlack').onclick = ()=> doGamble('black');
+
+  function doGamble(choice){
+    if (lastWin <= 0) { log('No win to gamble.'); beep(220,0.08); return; }
+    const color = Math.random() < 0.5 ? 'red' : 'black';
+    if (choice === color) {
+      // double
+      const user = getCurrent();
+      setBalanceFor(user, getBalanceFor(user) + lastWin); // add extra equal to lastWin
+      lastWin = lastWin * 2;
+      $('#lastWin').textContent = formatMoney(lastWin);
+      $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
+      log(`Gamble success! Color ${color}. Win doubled to ${formatMoney(lastWin)}.`);
+      beep(1200,0.12,'sine',0.12);
+    } else {
+      // lose the lastWin (remove it)
+      const user = getCurrent();
+      setBalanceFor(user, Math.max(0, getBalanceFor(user) - lastWin));
+      log(`Gamble lost. Color was ${color}. You lost ${formatMoney(lastWin)}.`);
+      lastWin = 0;
+      $('#lastWin').textContent = formatMoney(0);
+      $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
+      beep(160,0.18,'sawtooth',0.12);
+    }
+  }
+
+  // profile and quick actions
+  $('#openProfile2').onclick = ()=> showProfileModal(getUsers()[getCurrent()]);
+  $('#add10').onclick = ()=> { setBalanceFor(getCurrent(), getBalanceFor(getCurrent()) + 10); $('#gameBalance').textContent = formatMoney(getBalanceFor(getCurrent())); beep(880,0.06); };
+  $('#resetBal').onclick = ()=> { setBalanceFor(getCurrent(), DEFAULT_BALANCE); $('#gameBalance').textContent = formatMoney(getBalanceFor(getCurrent())); beep(440,0.06); };
+
+  // initial UI
+  $('#jackpotPanel').textContent = formatMoney(getJackpot());
+  $('#gameBalance').textContent = formatMoney(getBalanceFor(getCurrent()));
+}
+
+/* Start app */
+window.addEventListener('hashchange', render);
+render();
+
+/* Expose for debugging */
+window._cs = { getUsers, getBalances, getCurrent, setBalanceFor, getJackpot, setJackpot };
+</script>
+</body>
+</html>
