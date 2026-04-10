@@ -1494,586 +1494,211 @@ function chBet(d){if(sSpinning)return;sBetIdx=Math.max(0,Math.min(SBETS.length-1
 
 ===================================================== */
 
+/* =====================================================
+    ROULETTE ENGINE — რუსთავ სლოტი (Rustav Slot)
+===================================================== */
 const WHEEL=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
-
 const REDS=new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
 
- 
+let rouCtx, rouSZ;
+let rouSpinning=false, rouAngle=0, rouVel=0;
+let ballAngle=0, ballVel=0, ballR=0;
+let rouResult=null, rouLoopActive=false;
+let curChip=1, rBets={}, prevBets={};
 
-let rouCtx,rouSZ;
+// დამხმარე ფუნქცია, რომ კოდი არ გაჩერდეს თუ ფუნქცია არ არსებობს
+const safeRun = (fn, ...args) => { if (typeof window[fn] === 'function') window[fn](...args); };
 
-let rouSpinning=false,rouAngle=0,rouVel=0;
-
-let ballAngle=0,ballVel=0,ballR=0;
-
-let rouResult=null,rouLoopActive=false;
-
-let curChip=1,rBets={},prevBets={};
-
- 
-
-/* Build betting table */
-
+/* მაგიდის აწყობა */
 function buildBetTable(){
+  const tbl=document.getElementById('betTable');
+  if(!tbl) return;
+  tbl.innerHTML='';
+  
+  const mainRow=document.createElement('div');
+  mainRow.className='bt-row';
 
-  const tbl=document.getElementById('betTable');tbl.innerHTML='';
-
-  // Main wrapper: zero + grid + col bets
-
-  const mainRow=document.createElement('div');mainRow.className='bt-row';
-
-  // 0
-
+  // 0 უჯრა
   const zCell=document.createElement('div');
-
-  zCell.className='bt-cell gc';zCell.style.cssText='min-width:28px;flex:0 0 28px;font-size:13px';
-
-  zCell.textContent='0';zCell.id='bc_n0';zCell.onclick=()=>placeBet('n0');
-
+  zCell.className='bt-cell gc';
+  zCell.style.cssText='min-width:30px; flex:0 0 30px;';
+  zCell.textContent='0'; zCell.id='bc_n0';
+  zCell.onclick=()=>placeBet('n0');
   mainRow.appendChild(zCell);
 
-  // Number grid 12 rows x 3 cols (numbers go 1-2-3 across, then 4-5-6, ...)
-
-  const gridDiv=document.createElement('div');gridDiv.style.flex='1';
-
-  for(let row=0;row<12;row++){
-
-    const rowDiv=document.createElement('div');rowDiv.className='bt-row';
-
-    for(let col=0;col<3;col++){
-
-      const num=row*3+col+1;
-
-      const cell=document.createElement('div');
-
-      cell.className='bt-cell '+(REDS.has(num)?'rc':'bc');
-
-      cell.textContent=num;cell.id='bc_n'+num;
-
+  // ციფრების ბადე
+  const gridDiv=document.createElement('div');
+  gridDiv.style.flex='1';
+  for(let row=0; row<12; row++){
+    const rowDiv=document.createElement('div');
+    rowDiv.className='bt-row';
+    for(let col=0; col<3; col++){
+      let num = row*3 + col + 1;
+      let cell=document.createElement('div');
+      cell.className='bt-cell ' + (REDS.has(num)?'rc':'bc');
+      cell.textContent=num; cell.id='bc_n'+num;
       cell.onclick=()=>placeBet('n'+num);
-
       rowDiv.appendChild(cell);
-
     }
-
     gridDiv.appendChild(rowDiv);
-
   }
-
   mainRow.appendChild(gridDiv);
-
-  // Column bets
-
-  const colDiv=document.createElement('div');colDiv.style.cssText='display:flex;flex-direction:column;min-width:30px;flex:0 0 30px';
-
-  ['C1','C2','C3'].forEach((label,i)=>{
-
-    const cell=document.createElement('div');
-
-    cell.className='bt-cell cc';cell.style.cssText='flex:1;font-size:9px';
-
-    cell.textContent=label;cell.id='bc_col'+(i+1);
-
-    cell.onclick=()=>placeBet('col'+(i+1));colDiv.appendChild(cell);
-
-  });
-
-  mainRow.appendChild(colDiv);
-
   tbl.appendChild(mainRow);
 
-  // Dozens
-
-  const dRow=document.createElement('div');dRow.className='bt-row';
-
-  [['d1','1-12'],['d2','13-24'],['d3','25-36']].forEach(([k,l])=>{
-
-    const c=document.createElement('div');c.className='bt-cell oc';c.textContent=l;c.id='bc_'+k;
-
-    c.onclick=()=>placeBet(k);dRow.appendChild(c);
-
+  // გარე ფსონები (წითელი, შავი, ლუწი, კენტი)
+  const eRow=document.createElement('div');
+  eRow.className='bt-row';
+  [['red','🔴 წით'],['black','⚫ შავი'],['even','ლუწი'],['odd','კენტი']].forEach(([k,l])=>{
+    const c=document.createElement('div');
+    c.className='bt-cell oc'; c.textContent=l; c.id='bc_'+k;
+    c.onclick=()=>placeBet(k);
+    eRow.appendChild(c);
   });
-
-  tbl.appendChild(dRow);
-
-  // Even chances
-
-  const eRow=document.createElement('div');eRow.className='bt-row';
-
-  [['low','1-18'],['even','ლუწი'],['red','🔴 წიt'],['black','⚫ შავი'],['odd','კენტი'],['high','19-36']].forEach(([k,l])=>{
-
-    const c=document.createElement('div');c.className='bt-cell oc';c.textContent=l;c.id='bc_'+k;
-
-    if(k==='red')c.style.color='#ff7755';if(k==='black')c.style.color='#aaa';
-
-    c.onclick=()=>placeBet(k);eRow.appendChild(c);
-
-  });
-
   tbl.appendChild(eRow);
-
-}
-
- 
-
-function selChip(val,el){
-
-  curChip=val;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel'));el.classList.add('sel');
-
 }
 
 function placeBet(key){
-
-  const u=getCur();if(!u||rouSpinning)return;
-
-  if(getBal(u)<curChip){showRouMsg('არასაკმარისი ბალანსი',false);return}
-
-  setBal(u,getBal(u)-curChip);
-
-  rBets[key]=(rBets[key]||0)+curChip;
-
-  sndChip();refreshBetTable();updateRouUI();
-
+  if(rouSpinning) return;
+  const u = typeof getCur === 'function' ? getCur() : null;
+  if(!u) return;
+  
+  if(getBal(u) < curChip){ showRouMsg('არასაკმარისი ბალანსი', false); return; }
+  
+  setBal(u, getBal(u) - curChip);
+  rBets[key] = (rBets[key] || 0) + curChip;
+  safeRun('sndChip');
+  refreshBetTable();
+  updateRouUI();
 }
-
-function refreshBetTable(){
-
-  document.querySelectorAll('.bt-chip').forEach(c=>c.remove());
-
-  Object.entries(rBets).forEach(([key,amt])=>{
-
-    const cell=document.getElementById('bc_'+key);if(!cell)return;
-
-    const chip=document.createElement('div');chip.className='bt-chip';
-
-    chip.textContent=amt>=100?'100+':amt>=10?amt:amt;cell.appendChild(chip);
-
-  });
-
-}
-
-function clearBets(){
-
-  if(rouSpinning)return;
-
-  const u=getCur();if(!u)return;
-
-  const tot=Object.values(rBets).reduce((a,b)=>a+b,0);
-
-  setBal(u,getBal(u)+tot);rBets={};refreshBetTable();updateRouUI();showRouMsg('ფსონები გასუფთავდა',false);
-
-}
-
-function reBet(){
-
-  if(rouSpinning||!Object.keys(prevBets).length)return;
-
-  const u=getCur();if(!u)return;
-
-  const tot=Object.values(prevBets).reduce((a,b)=>a+b,0);
-
-  if(getBal(u)<tot){showRouMsg('არასაკმარისი ბალანსი',false);return}
-
-  setBal(u,getBal(u)-tot);rBets={...prevBets};refreshBetTable();updateRouUI();showRouMsg('ფსონები განახლდა',false);
-
-}
-
-function totBet(){return Object.values(rBets).reduce((a,b)=>a+b,0)}
-
-function updateRouUI(){document.getElementById('rouTotalBet').textContent=fmtM(totBet());refreshBal()}
-
-function showRouMsg(msg,isWin){
-
-  const el=document.getElementById('rouWinMsg');el.textContent=msg;
-
-  el.style.color=isWin?'var(--gold2)':'var(--muted)';
-
-}
-
- 
-
-/* Wheel canvas setup */
-
-function initRou(){
-
-  rouCtx=document.getElementById('rouCanvas').getContext('2d');
-
-  const wrap=document.querySelector('.rou-left');
-
-  const maxS=Math.min(wrap.clientWidth-8,window.innerHeight*.42,330);
-
-  rouSZ=Math.max(180,Math.floor(maxS));
-
-  const dpr=window.devicePixelRatio||1;
-
-  const c=document.getElementById('rouCanvas');
-
-  c.width=rouSZ*dpr;c.height=rouSZ*dpr;c.style.width=rouSZ+'px';c.style.height=rouSZ+'px';
-
-  rouCtx.setTransform(1,0,0,1,0,0);rouCtx.scale(dpr,dpr);
-
-}
-
- 
-
-function drawRoulette(){
-
-  const cx=rouSZ/2,cy=rouSZ/2;
-
-  const R=rouSZ/2*.97;
-
-  const numR=R*.8;
-
-  const innerR=R*.55;
-
-  const N=37,segA=(Math.PI*2)/N;
-
-  // Outer rim
-
-  rouCtx.beginPath();rouCtx.arc(cx,cy,R,0,Math.PI*2);
-
-  const rimG=rouCtx.createRadialGradient(cx,cy,R*.92,cx,cy,R);
-
-  rimG.addColorStop(0,'#3a2800');rimG.addColorStop(1,'#1a1000');
-
-  rouCtx.fillStyle=rimG;rouCtx.fill();
-
-  // Sectors
-
-  WHEEL.forEach((num,i)=>{
-
-    const sa=rouAngle+i*segA-segA/2;const ea=sa+segA;
-
-    rouCtx.beginPath();rouCtx.moveTo(cx,cy);rouCtx.arc(cx,cy,R*.93,sa,ea);rouCtx.closePath();
-
-    rouCtx.fillStyle=num===0?'#005500':REDS.has(num)?'#b52000':'#151515';
-
-    rouCtx.fill();
-
-    rouCtx.strokeStyle='rgba(255,215,0,.12)';rouCtx.lineWidth=.5;rouCtx.stroke();
-
-    // number text
-
-    const ta=rouAngle+i*segA;const tx=cx+Math.cos(ta)*numR,ty=cy+Math.sin(ta)*numR;
-
-    rouCtx.save();rouCtx.translate(tx,ty);rouCtx.rotate(ta+Math.PI/2);
-
-    rouCtx.font=`bold ${rouSZ*.042}px Cinzel`;
-
-    rouCtx.fillStyle='#fff';rouCtx.textAlign='center';rouCtx.textBaseline='middle';
-
-    rouCtx.fillText(String(num),0,0);rouCtx.restore();
-
-  });
-
-  // Inner disc
-
-  const ig=rouCtx.createRadialGradient(cx,cy,0,cx,cy,innerR);
-
-  ig.addColorStop(0,'#1a0d00');ig.addColorStop(1,'#0a0700');
-
-  rouCtx.beginPath();rouCtx.arc(cx,cy,innerR,0,Math.PI*2);
-
-  rouCtx.fillStyle=ig;rouCtx.fill();
-
-  rouCtx.strokeStyle='rgba(212,160,23,.45)';rouCtx.lineWidth=2;rouCtx.stroke();
-
-  // Center knob
-
-  const cg=rouCtx.createRadialGradient(cx-innerR*.04,cy-innerR*.04,0,cx,cy,innerR*.14);
-
-  cg.addColorStop(0,'#ffe480');cg.addColorStop(.5,'var(--gold)');cg.addColorStop(1,'#7a5200');
-
-  rouCtx.beginPath();rouCtx.arc(cx,cy,innerR*.13,0,Math.PI*2);
-
-  rouCtx.fillStyle=cg;rouCtx.fill();
-
-}
-
- 
-
-function drawBall(){
-
-  const cx=rouSZ/2,cy=rouSZ/2;
-
-  const R=rouSZ/2*.97;
-
-  const bx=cx+Math.cos(ballAngle)*ballR;const by=cy+Math.sin(ballAngle)*ballR;
-
-  rouCtx.save();
-
-  rouCtx.shadowColor='rgba(255,255,255,.9)';rouCtx.shadowBlur=10;
-
-  rouCtx.beginPath();rouCtx.arc(bx,by,rouSZ*.026,0,Math.PI*2);
-
-  const bg=rouCtx.createRadialGradient(bx-rouSZ*.008,by-rouSZ*.008,0,bx,by,rouSZ*.026);
-
-  bg.addColorStop(0,'#ffffff');bg.addColorStop(.7,'#dddddd');bg.addColorStop(1,'#888');
-
-  rouCtx.fillStyle=bg;rouCtx.fill();
-
-  rouCtx.restore();
-
-}
-
- 
-
-function rouLoop(ts){
-
-  if(!rouLoopActive)return;
-
-  rouCtx.clearRect(0,0,rouSZ,rouSZ);
-
-  if(rouSpinning||ballVel>.004){
-
-    rouAngle+=rouVel;rouVel*=.998;
-
-    ballAngle-=ballVel;
-
-    // ball spirals inward
-
-    const R=rouSZ/2*.97;
-
-    const track=R*.91,pocket=R*.68;
-
-    const prog=Math.max(0,Math.min(1,1-ballVel/.25));
-
-    ballR=track-(track-pocket)*prog;
-
-    // tick sound
-
-    const prevFrac=((ballAngle+Math.PI*.05)*10)%1;
-
-    ballVel*=.993;
-
-    if(ballVel<.3)ballVel*=.991; // slow down more
-
-    if(ballVel<.004&&rouSpinning){
-
-      rouSpinning=false;findResult();
-
-    }
-
-  }
-
-  drawRoulette();
-
-  if(ballVel>.001||rouSpinning)drawBall();
-
-  else if(rouResult!==null){
-
-    // draw ball in pocket
-
-    const N=37,segA=(Math.PI*2)/N;
-
-    const ni=WHEEL.indexOf(rouResult);
-
-    const pa=rouAngle+ni*segA;
-
-    const R=rouSZ/2*.97;
-
-    const px=(rouSZ/2)+Math.cos(pa)*R*.72,py=(rouSZ/2)+Math.sin(pa)*R*.72;
-
-    rouCtx.save();rouCtx.shadowColor='rgba(255,255,255,.8)';rouCtx.shadowBlur=8;
-
-    rouCtx.beginPath();rouCtx.arc(px,py,rouSZ*.024,0,Math.PI*2);
-
-    rouCtx.fillStyle='#fff';rouCtx.fill();rouCtx.restore();
-
-  }
-
-  requestAnimationFrame(rouLoop);
-
-}
-
- 
-
-function findResult(){
-
-  // Find which pocket the ball is in
-
-  const N=37,segA=(Math.PI*2)/N;
-
-  const normalized=((-ballAngle%(Math.PI*2))+(Math.PI*2))%(Math.PI*2);
-
-  const wheelNorm=(rouAngle%(Math.PI*2)+(Math.PI*2))%(Math.PI*2);
-
-  const rel=(normalized-wheelNorm+Math.PI*2)%(Math.PI*2);
-
-  let idx=Math.round(rel/segA)%N;
-
-  rouResult=WHEEL[idx];
-
-  sndBall();
-
-  showResult();
-
-}
-
- 
-
-function showResult(){
-
-  const u=getCur();if(!u)return;
-
-  const num=rouResult;
-
-  const isRed=REDS.has(num);const isBlack=num>0&&!isRed;const isGreen=num===0;
-
-  // Badge
-
-  const el=document.getElementById('rouNumEl');
-
-  el.textContent=num;
-
-  el.className='rou-num '+(isGreen?'grn-n':isRed?'red-n':'blk-n');
-
-  el.style.display='inline-flex';
-
-  // Calculate payout
-
-  let totalWin=0;
-
-  Object.entries(rBets).forEach(([key,betAmt])=>{
-
-    let m=0;
-
-    if(key.startsWith('n')&&parseInt(key.slice(1))===num)m=36;
-
-    else if(key==='red'&&isRed)m=2;
-
-    else if(key==='black'&&isBlack)m=2;
-
-    else if(key==='even'&&num>0&&num%2===0)m=2;
-
-    else if(key==='odd'&&num>0&&num%2===1)m=2;
-
-    else if(key==='low'&&num>=1&&num<=18)m=2;
-
-    else if(key==='high'&&num>=19&&num<=36)m=2;
-
-    else if(key==='d1'&&num>=1&&num<=12)m=3;
-
-    else if(key==='d2'&&num>=13&&num<=24)m=3;
-
-    else if(key==='d3'&&num>=25&&num<=36)m=3;
-
-    else if(key==='col1'&&num>0&&num%3===1)m=3;
-
-    else if(key==='col2'&&num>0&&num%3===2)m=3;
-
-    else if(key==='col3'&&num>0&&num%3===0)m=3;
-
-    if(m>0)totalWin+=betAmt*m;
-
-  });
-
-  const tb=totBet();
-
-  const profit=totalWin-tb;
-
-  if(totalWin>0){
-
-    setBal(u,getBal(u)+totalWin);
-
-    document.getElementById('rouLastWin').textContent=fmtM(profit>=0?profit:0);
-
-    showRouMsg('🏆 გამარჯვება! +'+fmtM(totalWin),true);
-
-    spawnParts(rouSZ/2+document.querySelector('.rou-left').getBoundingClientRect().left,rouSZ/2+document.querySelector('.rou-left').getBoundingClientRect().top,isRed?'#ff5544':'#ffd700',50);
-
-    if(totalWin>=tb*10){showMega('📀 დიდი მოგება!',totalWin);}else sndWin();
-
-    addHist({game:'რულეტ №'+num,win:profit});
-
-  }else{
-
-    document.getElementById('rouLastWin').textContent='₾0.00';
-
-    showRouMsg('❌ '+num+' — წაგება',false);sndLose();
-
-    addHist({game:'რულეტ №'+num,win:-tb});
-
-  }
-
-  prevBets={...rBets};rBets={};refreshBetTable();updateRouUI();
-
-  document.getElementById('rouSpinBtn').disabled=false;
-
-  renderRouHist();
-
-}
-
- 
-
-function renderRouHist(){
-
-  const h=getHist().filter(x=>x.game.startsWith('რულეტ')).slice(0,10);
-
-  const el=document.getElementById('rouHist');
-
-  el.innerHTML=h.map(i=>`<div class="hist-item"><span>${i.game}</span><span class="${i.win>0?'hw':'hl'}">${i.win>0?'+':''}${fmtM(i.win)}</span></div>`).join('');
-
-}
-
- 
 
 function doRouSpin(){
+  safeRun('getAC');
+  const u = typeof getCur === 'function' ? getCur() : null;
+  if(!u || rouSpinning) return;
+  
+  let total = Object.values(rBets).reduce((a,b)=>a+b, 0);
+  if(total <= 0){ showRouMsg('დადეთ ფსონი!', false); return; }
 
-  getAC();
+  rouSpinning=true;
+  rouResult=null;
+  
+  const numEl = document.getElementById('rouNumEl');
+  if(numEl) numEl.style.display='none';
+  
+  document.getElementById('rouSpinBtn').disabled = true;
+  showRouMsg('რუსთავ სლოტი ატრიალებს...', false);
 
-  const u=getCur();if(!u)return;
-
-  if(rouSpinning)return;
-
-  if(totBet()<=0){showRouMsg('განათავსეთ ფსონი',false);return}
-
-  rouSpinning=true;rouResult=null;
-
-  document.getElementById('rouNumEl').style.display='none';
-
-  document.getElementById('rouSpinBtn').disabled=true;
-
-  showRouMsg('ბორბალი ბრუნავს...',false);
-
-  rouVel=.038+Math.random()*.02;
-
-  ballVel=.24+Math.random()*.13;
-
-  const R=rouSZ/2*.97;
-
-  ballR=R*.91;ballAngle=Math.random()*Math.PI*2;
-
-  sndSpin();
-
+  // ფიზიკის პარამეტრები
+  rouVel = 0.04 + Math.random() * 0.02;
+  ballVel = 0.22 + Math.random() * 0.12;
+  ballAngle = Math.random() * Math.PI * 2;
+  
+  const R = rouSZ / 2 * 0.97;
+  ballR = R * 0.91;
+  
+  safeRun('sndSpin');
 }
 
- 
+function findResult(){
+  const N=37, segA=(Math.PI*2)/N;
+  const normalized = ((-ballAngle % (Math.PI*2)) + (Math.PI*2)) % (Math.PI*2);
+  const wheelNorm = (rouAngle % (Math.PI*2) + (Math.PI*2)) % (Math.PI*2);
+  const rel = (normalized - wheelNorm + Math.PI*2) % (Math.PI*2);
+  
+  let idx = Math.round(rel / segA) % N;
+  rouResult = WHEEL[idx];
+  
+  safeRun('sndBall');
+  showResult();
+}
 
-function goRoulette(){
+function showResult(){
+  const u = typeof getCur === 'function' ? getCur() : null;
+  if(!u) return;
+  
+  const num = rouResult;
+  const isRed = REDS.has(num);
+  const el = document.getElementById('rouNumEl');
+  
+  if(el) {
+    el.textContent = num;
+    el.className = 'rou-num ' + (num === 0 ? 'grn-n' : isRed ? 'red-n' : 'blk-n');
+    el.style.display = 'inline-flex';
+  }
 
-  getAC();showScreen('sRou');updateHeader(true,true);
+  // მოგების კალკულაცია
+  let winAmt = 0;
+  Object.entries(rBets).forEach(([key, amt]) => {
+    if(key === 'n' + num) winAmt += amt * 36;
+    else if(key === 'red' && isRed) winAmt += amt * 2;
+    else if(key === 'black' && num !== 0 && !isRed) winAmt += amt * 2;
+    else if(key === 'even' && num !== 0 && num % 2 === 0) winAmt += amt * 2;
+    else if(key === 'odd' && num !== 0 && num % 2 !== 0) winAmt += amt * 2;
+  });
 
-  buildBetTable();initRou();
+  const totalBetAmt = Object.values(rBets).reduce((a,b)=>a+b, 0);
+  
+  if(winAmt > 0){
+    setBal(u, getBal(u) + winAmt);
+    showRouMsg('მოგება: ' + (typeof fmtM === 'function' ? fmtM(winAmt) : winAmt), true);
+    safeRun('sndWin');
+    if(winAmt >= totalBetAmt * 10) safeRun('showMega', 'დიდი მოგება!', winAmt);
+  } else {
+    showRouMsg(num + ' - წაგება', false);
+    safeRun('sndLose');
+  }
 
-  rBets={};prevBets={};rouResult=null;rouSpinning=false;
+  prevBets = {...rBets};
+  rBets = {};
+  refreshBetTable();
+  updateRouUI();
+  
+  document.getElementById('rouSpinBtn').disabled = false;
+  rouSpinning = false;
+  safeRun('renderRouHist');
+}
 
-  rouAngle=0;rouVel=0;ballVel=0;ballR=0;
+function rouLoop(ts){
+  if(!rouLoopActive) return;
+  rouCtx.clearRect(0, 0, rouSZ, rouSZ);
+  
+  if(rouSpinning || ballVel > 0.004){
+    rouAngle += rouVel;
+    rouVel *= 0.998; // ბორბლის შენელება
+    
+    ballAngle -= ballVel;
+    ballVel *= 0.992; // ბურთის შენელება
+    
+    const R = rouSZ / 2 * 0.97;
+    const track = R * 0.91, pocket = R * 0.72;
+    const prog = Math.max(0, Math.min(1, 1 - ballVel / 0.22));
+    ballR = track - (track - pocket) * prog;
 
-  rouLoopActive=true;
-
-  updateRouUI();showRouMsg('განათავსეთ ფსონი',false);
-
-  document.getElementById('rouNumEl').style.display='none';
-
-  document.getElementById('rouLastWin').textContent='₾0.00';
-
+    if(ballVel < 0.004 && rouSpinning){
+      rouSpinning = false;
+      findResult();
+    }
+  }
+  
+  drawRoulette();
+  if(ballVel > 0.001 || rouSpinning) drawBall();
+  
   requestAnimationFrame(rouLoop);
-
-  renderRouHist();
-
 }
 
+function showRouMsg(msg, isWin){
+  const el = document.getElementById('rouWinMsg');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = isWin ? '#ffcc00' : '#888';
+}
+
+function updateRouUI(){
+  const tb = Object.values(rBets).reduce((a,b)=>a+b, 0);
+  const el = document.getElementById('rouTotalBet');
+  if(el) el.textContent = (typeof fmtM === 'function' ? fmtM(tb) : tb);
+  safeRun('refreshBal');
+}
  
 
 /* =====================================================
