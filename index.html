@@ -3,54 +3,48 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Chaos Slotmachine — Demo</title>
+<title>Chaos Slotmachine Deluxe — Full</title>
 <link rel="icon" href="data:;base64,iVBORw0KGgo=">
 <style>
-  /* Basic UI */
   :root{
-    --bg:#071018;--card:#0f1720;--muted:#9aa4b2;--accent:#ffd700;
+    --bg:#071018;--panel:#0b1220;--muted:#9aa4b2;--accent:#ffd700;
     --glass: rgba(255,255,255,0.03);
   }
   *{box-sizing:border-box}
-  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;background:linear-gradient(180deg,#02030a,#071018);color:#e6eef6}
-  .app{max-width:1100px;margin:28px auto;padding:18px;display:grid;grid-template-columns:1fr 360px;gap:18px}
-  header{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between}
+  html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#02030a,#071018);color:#e6eef6}
+  .wrap{max-width:1200px;margin:20px auto;padding:18px;display:grid;grid-template-columns:1fr 360px;gap:18px}
+  header{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
   h1{margin:0;color:var(--accent);font-size:20px}
-  .desc{color:var(--muted);font-size:13px}
-  .panel{background:linear-gradient(180deg,#071018,#0b0f12);padding:14px;border-radius:12px;border:1px solid var(--glass)}
-  .sidebar{padding:14px}
-  .btn{display:inline-block;padding:8px 12px;border-radius:8px;border:none;background:#2b6cff;color:#fff;cursor:pointer;font-weight:600}
-  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
   .muted{color:var(--muted)}
-  /* Login/Register */
-  .auth{max-width:420px;margin:40px auto;padding:18px;border-radius:12px;background:linear-gradient(180deg,#071018,#0b0f12);border:1px solid var(--glass)}
-  .field{display:flex;flex-direction:column;margin-bottom:10px}
-  .field label{font-size:13px;color:var(--muted);margin-bottom:6px}
-  .field input{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff}
-  /* Dashboard */
-  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
-  .slot-card{background:linear-gradient(180deg,#0b1220,#071018);padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 8px 30px rgba(0,0,0,0.5)}
-  .slot-card img{width:100%;height:120px;object-fit:cover;border-radius:6px;background:#000}
-  .slot-card h3{margin:8px 0 6px;font-size:15px;color:#ffdca3}
-  .slot-meta{display:flex;justify-content:space-between;align-items:center}
-  /* Balance */
+  .panel{background:linear-gradient(180deg,#071018,#0b0f12);padding:14px;border-radius:12px;border:1px solid var(--glass)}
+  .btn{padding:8px 12px;border-radius:8px;border:none;background:#2b6cff;color:#fff;cursor:pointer;font-weight:700}
+  .btn-ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
   .balance{position:fixed;right:18px;top:18px;background:linear-gradient(90deg,#0b1220,#071018);padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 8px 30px rgba(0,0,0,0.6);z-index:999}
   .balance strong{color:var(--accent);font-size:18px}
-  .profile{margin-top:12px}
-  /* Slot game */
-  .game-wrap{display:grid;grid-template-columns:1fr 320px;gap:12px}
-  .reels{background:#07121a;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
-  .reel-row{display:flex;gap:8px;justify-content:center;margin-bottom:8px}
-  .reel{width:84px;height:84px;background:#0b0f12;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff;border:1px solid rgba(255,255,255,0.03)}
-  .controls{background:#07121a;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .slot-card{padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:linear-gradient(180deg,#0b1220,#071018)}
+  .slot-card h3{margin:8px 0 6px;color:#ffdca3}
+  .game{display:grid;grid-template-columns:1fr 320px;gap:12px}
+  .machine{background:linear-gradient(180deg,#08121a,#061018);padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.04)}
+  .reels{display:flex;gap:12px;justify-content:center;align-items:center;padding:12px}
+  .reel{width:96px;height:288px;background:#07121a;border-radius:10px;border:1px solid rgba(255,255,255,0.03);overflow:hidden;position:relative;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+  .strip{position:absolute;left:0;right:0;top:0;display:flex;flex-direction:column;align-items:center;transition:transform 1s cubic-bezier(.2,.9,.2,1)}
+  .symbol{width:84px;height:84px;margin:6px 0;border-radius:8px;background:linear-gradient(180deg,#0f1720,#0b1220);display:flex;align-items:center;justify-content:center;font-size:28px;color:#fff;border:1px solid rgba(255,255,255,0.03);box-shadow:0 6px 18px rgba(0,0,0,0.6);user-select:none}
+  .symbol img{width:100%;height:100%;object-fit:cover;border-radius:8px;display:block}
+  .symbol.wild{box-shadow:0 0 18px rgba(255,215,0,0.18) inset}
+  .symbol.bonus{box-shadow:0 0 18px rgba(255,107,107,0.12) inset}
+  .controls{padding:12px;border-radius:10px}
   .select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#fff}
-  .small{font-size:13px;color:var(--muted)}
+  .paylines{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .line-pill{padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02);font-size:13px}
   .log{height:120px;overflow:auto;background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;margin-top:8px;font-size:13px}
-  /* modal */
+  .highlight{outline:3px solid rgba(255,215,0,0.12);box-shadow:0 8px 30px rgba(255,215,0,0.06) inset}
+  #particles{position:fixed;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:9998}
   .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);z-index:9999}
-  .modal .panel{width:720px;max-width:95%}
-  footer{grid-column:1/-1;margin-top:12px;color:var(--muted);font-size:13px;text-align:center}
-  @media (max-width:980px){.app{grid-template-columns:1fr}.balance{position:static;margin:12px auto;display:flex;justify-content:center}}
+  .modal .panel{width:760px;max-width:95%}
+  .field{display:flex;flex-direction:column;margin-bottom:10px}
+  .small{font-size:13px;color:var(--muted)}
+  @media (max-width:980px){.wrap{grid-template-columns:1fr}.balance{position:static;margin:12px auto;display:flex;justify-content:center}}
 </style>
 </head>
 <body>
@@ -61,539 +55,673 @@
       <div style="width:44px;height:44;border-radius:8px;background:linear-gradient(90deg,#ffd700,#ffb86b);display:flex;align-items:center;justify-content:center;color:#04120a;font-weight:800">₾</div>
       <div>
         <div class="small muted">Balance</div>
-        <div><strong id="balanceAmount">0</strong></div>
-      </div>
-    </div>
-    <div class="profile small" style="margin-top:8px">
-      <div id="profileName" style="font-weight:700"></div>
-      <div id="profileEmail" class="muted" style="font-size:12px"></div>
-      <div style="margin-top:8px;display:flex;gap:8px">
-        <button id="btnProfile" class="btn-ghost btn" style="padding:6px 8px">Profile</button>
-        <button id="btnLogout" class="btn-ghost btn" style="padding:6px 8px">Logout</button>
+        <div><strong id="balanceAmount">0.00 ₾</strong></div>
       </div>
     </div>
   </div>
 
+  <div style="position:fixed;left:18px;top:18px;z-index:9999">
+    <button id="uploadSymbolsBtn" class="btn btn-ghost">Upload Symbols</button>
+  </div>
+
+  <div id="uploadModal" style="display:none" class="modal">
+    <div class="panel">
+      <h3 style="margin:0 0 8px;color:var(--accent)">Upload slot images (auto crop)</h3>
+      <div class="small muted" style="margin-bottom:8px">Files will be center‑cropped and resized to 512×512 for consistent visuals.</div>
+      <div id="uploadList" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:420px;overflow:auto"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end">
+        <button id="saveUploads" class="btn">Save</button>
+        <button id="closeUploads" class="btn btn-ghost">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="particles"></canvas>
+
 <script>
 /* =========================
-   Simple SPA + Data model
+   Full enhanced slot — single file
+   - Auto-crop upload (center crop to 512x512)
+   - Local repo image mapping support
+   - High-quality audio preload (assets/audio/*)
+   - Polished reel animation, particles, gamble, jackpot
    ========================= */
-const STORAGE_KEYS = {
-  USERS: 'cs_users_v1',
-  CURRENT: 'cs_current_v1',
-  BALANCES: 'cs_balances_v1',
-  JACKPOT: 'cs_jackpot_v1'
+
+/* Storage keys */
+const STORAGE = {
+  USERS: 'cs_users_v4',
+  CURRENT: 'cs_current_v4',
+  BAL: 'cs_bal_v4',
+  JACK: 'cs_jack_v4',
+  SYMBOLS: 'cs_symbols_v4' // dataURLs from upload or repo mapping
+};
+const DEFAULT_BAL = 200;
+if (!localStorage.getItem(STORAGE.JACK)) localStorage.setItem(STORAGE.JACK, '2500');
+
+/* Symbol keys */
+const SYMBOL_KEYS = ['7','BAR','A','K','Q','J','CH','WILD','BONUS'];
+
+/* Local repo mapping — edit paths if you name files differently */
+const SYMBOL_IMAGE_FILES = {
+  '7': 'assets/images/7.png',
+  'BAR': 'assets/images/BAR.png',
+  'A': 'assets/images/A.png',
+  'K': 'assets/images/K.png',
+  'Q': 'assets/images/Q.png',
+  'J': 'assets/images/J.png',
+  'CH': 'assets/images/CH.png',
+  'WILD': 'assets/images/WILD.png',   // put your cucumber image here and name it WILD.png (or change path)
+  'BONUS': 'assets/images/BONUS.png'
 };
 
-const DEFAULT_BALANCE = 100.0;
+/* Audio files mapping — put high-quality short effects in assets/audio/ */
+const AUDIO_FILES = {
+  spin: 'assets/audio/spin.mp3',
+  reel_stop: 'assets/audio/reel_stop.mp3',
+  win: 'assets/audio/win.mp3',
+  big_win: 'assets/audio/big_win.mp3',
+  mega_win: 'assets/audio/mega_win.mp3',
+  lose: 'assets/audio/lose.mp3'
+};
 
 /* Utilities */
-function $(sel, root=document) { return root.querySelector(sel); }
-function $all(sel, root=document) { return Array.from(root.querySelectorAll(sel)); }
-function save(key, obj){ localStorage.setItem(key, JSON.stringify(obj)); }
-function load(key, def){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; }catch(e){ return def; } }
-function formatMoney(n){ return Number(n).toFixed(2) + ' ₾'; }
+function save(key,obj){ localStorage.setItem(key, JSON.stringify(obj)); }
+function load(key,def){ try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : def; } catch(e){ return def; } }
+function getUsers(){ return load(STORAGE.USERS, {}); }
+function saveUsers(u){ save(STORAGE.USERS, u); }
+function getCurrent(){ return localStorage.getItem(STORAGE.CURRENT); }
+function setCurrent(u){ if(u) localStorage.setItem(STORAGE.CURRENT, u); else localStorage.removeItem(STORAGE.CURRENT); render(); renderBalance(); }
+function getBalances(){ return load(STORAGE.BAL, {}); }
+function setBalance(user,amt){ const b = getBalances(); b[user] = Number(amt); save(STORAGE.BAL, b); renderBalance(); }
+function getBalance(user){ const b = getBalances(); if (b[user] == null){ b[user] = DEFAULT_BAL; save(STORAGE.BAL, b); } return Number(b[user]); }
+function getJack(){ return Number(localStorage.getItem(STORAGE.JACK) || 0); }
+function setJack(v){ localStorage.setItem(STORAGE.JACK, String(Math.max(0, Math.round(v)))); renderJack(); }
 
-/* Data helpers */
-function getUsers(){ return load(STORAGE_KEYS.USERS, {}); }
-function saveUsers(u){ save(STORAGE_KEYS.USERS, u); }
-function getCurrent(){ return load(STORAGE_KEYS.CURRENT, null); }
-function setCurrent(name){ save(STORAGE_KEYS.CURRENT, name); renderBalanceWidget(); }
-function getBalances(){ return load(STORAGE_KEYS.BALANCES, {}); }
-function setBalanceFor(user, amount){ const b = getBalances(); b[user] = Number(amount); save(STORAGE_KEYS.BALANCES, b); renderBalanceWidget(); }
-function getBalanceFor(user){ const b = getBalances(); if (b[user] == null) { b[user] = DEFAULT_BALANCE; save(STORAGE_KEYS.BALANCES, b); } return Number(b[user]); }
-function getJackpot(){ return Number(localStorage.getItem(STORAGE_KEYS.JACKPOT) || 1000); }
-function setJackpot(v){ localStorage.setItem(STORAGE_KEYS.JACKPOT, Math.max(0, Number(v))); renderBalanceWidget(); }
-
-/* Init jackpot if missing */
-if (!localStorage.getItem(STORAGE_KEYS.JACKPOT)) setJackpot(1000);
-
-/* Audio: simple WebAudio for effects */
+/* Audio: preload buffers */
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function beep(freq=440, time=0.08, type='sine', gain=0.08){
-  const o = audioCtx.createOscillator();
-  const g = audioCtx.createGain();
-  o.type = type; o.frequency.value = freq;
-  g.gain.value = gain;
+const AUDIO_BUFFERS = {};
+async function preloadAudio(){
+  for(const name of Object.keys(AUDIO_FILES)){
+    const path = AUDIO_FILES[name];
+    try{
+      const resp = await fetch(path);
+      if(!resp.ok) throw new Error('no file');
+      const ab = await resp.arrayBuffer();
+      const buf = await audioCtx.decodeAudioData(ab);
+      AUDIO_BUFFERS[name] = buf;
+    }catch(e){
+      AUDIO_BUFFERS[name] = null; // fallback to synth
+    }
+  }
+}
+/* play audio helper */
+function playAudio(name, {gain=1} = {}){
+  const buf = AUDIO_BUFFERS[name];
+  if(buf){
+    const src = audioCtx.createBufferSource();
+    const g = audioCtx.createGain();
+    g.gain.value = gain;
+    src.buffer = buf;
+    src.connect(g); g.connect(audioCtx.destination);
+    src.start();
+    return;
+  }
+  // fallback synth
+  if(name === 'spin') synthTone(420,0.06,'sawtooth',0.06);
+  else if(name === 'reel_stop') synthTone(880,0.06,'sine',0.06);
+  else if(name === 'win') synthTone(1200,0.18,'triangle',0.08);
+  else if(name === 'big_win') synthTone(1600,0.22,'sine',0.12);
+  else if(name === 'mega_win') synthTone(2200,0.28,'sine',0.14);
+  else if(name === 'lose') synthTone(160,0.12,'sawtooth',0.08);
+}
+function synthTone(freq, time=0.08, type='sine', vol=0.06){
+  const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+  o.type = type; o.frequency.value = freq; g.gain.value = vol;
   o.connect(g); g.connect(audioCtx.destination);
   o.start(); o.stop(audioCtx.currentTime + time);
 }
 
-/* SPA rendering */
-const app = document.getElementById('app');
+/* Particles */
+const canvas = document.getElementById('particles');
+const ctx = canvas.getContext('2d');
+let particles = [];
+function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+function spawnParticles(x,y,color='#ffd700',count=40){
+  for(let i=0;i<count;i++){
+    particles.push({
+      x,y,
+      vx:(Math.random()-0.5)*8,
+      vy:(Math.random()-1.5)*8,
+      life:60 + Math.random()*60,
+      color,
+      size:4 + Math.random()*6
+    });
+  }
+}
+function updateParticles(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy; p.vy += 0.12; p.life--;
+    ctx.globalAlpha = Math.max(0, p.life/100);
+    ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill();
+    if(p.life<=0) particles.splice(i,1);
+  }
+  requestAnimationFrame(updateParticles);
+}
+requestAnimationFrame(updateParticles);
 
-function navigate(route){
-  window.location.hash = route;
-  render();
+/* Image preload from repo (if present) */
+const IMAGE_CACHE = {};
+async function preloadRepoImages(){
+  for(const key of SYMBOL_KEYS){
+    const path = SYMBOL_IMAGE_FILES[key];
+    try{
+      const img = new Image();
+      img.src = path;
+      await new Promise((res,rej)=>{ img.onload = res; img.onerror = rej; });
+      IMAGE_CACHE[key] = path; // store path (not dataURL) to use directly
+    }catch(e){
+      IMAGE_CACHE[key] = null;
+    }
+  }
 }
 
-function render(){
-  const hash = location.hash.replace('#','') || 'login';
-  if (hash.startsWith('slot/')) {
-    const id = hash.split('/')[1];
-    renderSlot(id);
-  } else if (hash === 'dashboard') {
-    renderDashboard();
-  } else if (hash === 'login') {
-    renderAuth();
-  } else {
-    renderAuth();
+/* Load saved symbol images (dataURLs) */
+function loadSymbolImages(){ return load(STORAGE.SYMBOLS, {}); }
+function saveSymbolImages(obj){ save(STORAGE.SYMBOLS, obj); }
+
+/* Apply images to any .symbol elements (repo images take precedence) */
+function applySymbolImagesToEngine(){
+  const saved = loadSymbolImages();
+  const merged = {};
+  for(const k of SYMBOL_KEYS){
+    if(IMAGE_CACHE[k]) merged[k] = IMAGE_CACHE[k];
+    else if(saved[k]) merged[k] = saved[k];
+    else merged[k] = null;
   }
-  renderBalanceWidget();
+  window.SYMBOL_IMAGES = merged;
+  const els = document.querySelectorAll('.symbol');
+  els.forEach(el=>{
+    const sym = el.dataset.sym;
+    if(!sym) return;
+    const src = window.SYMBOL_IMAGES[sym];
+    if(src){
+      el.innerHTML = '';
+      const img = document.createElement('img'); img.src = src; el.appendChild(img);
+      if(sym === 'WILD') el.classList.add('wild'); else el.classList.remove('wild');
+    } else {
+      el.innerHTML = sym;
+      el.classList.remove('wild');
+    }
+  });
+}
+
+/* Auto-crop & resize helper: center-crop to square and resize to 512x512 */
+function cropAndResizeImageFile(file, size=512){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const minSide = Math.min(img.width, img.height);
+        const sx = Math.floor((img.width - minSide) / 2);
+        const sy = Math.floor((img.height - minSide) / 2);
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        // high quality
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+        const dataUrl = canvas.toDataURL('image/png', 0.92);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+/* Upload modal logic with auto-crop */
+function openUploadModal(){
+  const modal = document.getElementById('uploadModal');
+  const list = document.getElementById('uploadList');
+  list.innerHTML = '';
+  const saved = loadSymbolImages();
+  SYMBOL_KEYS.forEach(key=>{
+    const wrapper = document.createElement('div');
+    wrapper.style.display='flex'; wrapper.style.gap='8px'; wrapper.style.alignItems='center';
+    const preview = document.createElement('div');
+    preview.style.width='64px'; preview.style.height='64px'; preview.style.borderRadius='8px'; preview.style.overflow='hidden';
+    preview.style.background='rgba(255,255,255,0.02)'; preview.style.display='flex'; preview.style.alignItems='center'; preview.style.justifyContent='center';
+    preview.style.fontSize='14px'; preview.style.color='#fff'; preview.textContent = key;
+    // show repo image if exists
+    if(IMAGE_CACHE[key]){ const img = document.createElement('img'); img.src = IMAGE_CACHE[key]; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover'; preview.textContent=''; preview.appendChild(img); }
+    else if(saved[key]){ const img = document.createElement('img'); img.src = saved[key]; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover'; preview.textContent=''; preview.appendChild(img); }
+    const info = document.createElement('div'); info.style.flex='1'; info.innerHTML = `<div style="font-weight:700">${key}</div><div class="muted small">Upload image (will be center-cropped)</div>`;
+    const fileInput = document.createElement('input'); fileInput.type='file'; fileInput.accept='image/*'; fileInput.style.width='160px';
+    fileInput.onchange = async (e) => {
+      const f = e.target.files[0]; if(!f) return;
+      try{
+        const dataUrl = await cropAndResizeImageFile(f, 512);
+        preview.innerHTML = '';
+        const img = document.createElement('img'); img.src = dataUrl; img.style.width='100%'; img.style.height='100%'; img.style.objectFit='cover';
+        preview.appendChild(img);
+        fileInput._dataUrl = dataUrl;
+        fileInput._remove = false;
+      }catch(err){
+        alert('Image processing failed.');
+      }
+    };
+    const removeBtn = document.createElement('button'); removeBtn.textContent='Remove'; removeBtn.className='btn btn-ghost';
+    removeBtn.onclick = ()=> { preview.innerHTML = key; fileInput.value=''; fileInput._dataUrl = null; fileInput._remove = true; };
+    wrapper.appendChild(preview); wrapper.appendChild(info); wrapper.appendChild(fileInput); wrapper.appendChild(removeBtn);
+    list.appendChild(wrapper);
+  });
+  modal.style.display = 'flex';
+}
+function saveUploadsFromModal(){
+  const modal = document.getElementById('uploadModal');
+  const inputs = modal.querySelectorAll('input[type=file]');
+  const saved = loadSymbolImages();
+  let idx = 0;
+  inputs.forEach(inp=>{
+    const key = SYMBOL_KEYS[idx++];
+    if(inp._remove){ delete saved[key]; return; }
+    if(inp._dataUrl) saved[key] = inp._dataUrl;
+  });
+  saveSymbolImages(saved);
+  applySymbolImagesToEngine();
+  modal.style.display = 'none';
+}
+
+/* Hook upload buttons */
+document.addEventListener('click', (e)=>{
+  if(e.target && e.target.id === 'uploadSymbolsBtn') openUploadModal();
+  if(e.target && e.target.id === 'closeUploads') document.getElementById('uploadModal').style.display='none';
+  if(e.target && e.target.id === 'saveUploads') saveUploadsFromModal();
+});
+
+/* SPA rendering */
+const app = document.getElementById('app');
+function navigate(route){ location.hash = route; }
+window.addEventListener('hashchange', render);
+
+function render(){
+  const route = location.hash.replace('#','') || 'login';
+  if(route.startsWith('play/')) renderGame(route.split('/')[1]);
+  else if(route === 'dashboard') renderDashboard();
+  else renderAuth();
+  renderBalance();
+  renderJack();
 }
 
 /* AUTH UI */
 function renderAuth(){
   app.innerHTML = `
-    <div class="auth panel">
-      <h2 style="margin:0 0 8px">Welcome to Chaos Slotmachine</h2>
-      <div class="desc muted">Register or login to start playing. Balance persists locally on your device.</div>
-      <div style="display:flex;gap:12px;margin-top:12px">
-        <button id="showLogin" class="btn">Login</button>
-        <button id="showRegister" class="btn btn-ghost">Register</button>
+    <div class="panel" style="max-width:560px;margin:40px auto">
+      <h2 style="margin:0 0 8px">Chaos Slot Deluxe</h2>
+      <div class="muted">Register or login. Balance and uploads are stored locally in your browser.</div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="btnLogin" class="btn">Login</button>
+        <button id="btnReg" class="btn btn-ghost">Register</button>
       </div>
-      <div id="authArea" style="margin-top:14px"></div>
+      <div id="authArea" style="margin-top:12px"></div>
     </div>
   `;
-  $('#showLogin').onclick = ()=> showLoginForm();
-  $('#showRegister').onclick = ()=> showRegisterForm();
+  $('#btnLogin').onclick = showLogin;
+  $('#btnReg').onclick = showRegister;
   const cur = getCurrent();
-  if (cur) {
-    // quick link to dashboard
-    const area = $('#authArea');
-    area.innerHTML = `<div style="margin-top:12px" class="muted">You are logged in as <strong>${cur}</strong>. <button id="toDash" class="btn" style="margin-left:8px">Go to Dashboard</button></div>`;
+  if(cur){
+    $('#authArea').innerHTML = `<div class="muted">Logged in as <strong>${cur}</strong>. <button id="toDash" class="btn" style="margin-left:8px">Dashboard</button></div>`;
     $('#toDash').onclick = ()=> navigate('dashboard');
   }
 }
-
-function showLoginForm(){
-  const area = $('#authArea');
-  area.innerHTML = `
-    <div style="margin-top:12px">
-      <div class="field"><label>Email</label><input id="liEmail" type="email" /></div>
-      <div class="field"><label>Password</label><input id="liPass" type="password" /></div>
-      <div style="display:flex;gap:8px"><button id="doLogin" class="btn">Login</button><button id="cancel" class="btn-ghost btn">Cancel</button></div>
-      <div id="loginMsg" class="muted small" style="margin-top:8px"></div>
+function showLogin(){
+  $('#authArea').innerHTML = `
+    <div>
+      <div class="field"><label class="muted">Username</label><input id="liUser" /></div>
+      <div class="field"><label class="muted">Password</label><input id="liPass" type="password" /></div>
+      <div style="display:flex;gap:8px"><button id="doLogin" class="btn">Login</button><button id="cancel" class="btn btn-ghost">Cancel</button></div>
+      <div id="msg" class="muted small" style="margin-top:8px"></div>
     </div>
   `;
-  $('#cancel').onclick = ()=> { $('#authArea').innerHTML=''; };
-  $('#doLogin').onclick = ()=> {
-    const email = $('#liEmail').value.trim().toLowerCase();
-    const pass = $('#liPass').value;
+  $('#cancel').onclick = ()=> $('#authArea').innerHTML='';
+  $('#doLogin').onclick = ()=>{
+    const u = $('#liUser').value.trim(), p = $('#liPass').value;
     const users = getUsers();
-    const found = Object.values(users).find(u => u.email === email && u.password === pass);
-    if (found) {
-      setCurrent(found.username);
-      $('#loginMsg').textContent = 'Login successful. Redirecting...';
-      setTimeout(()=> navigate('dashboard'), 600);
-    } else {
-      $('#loginMsg').textContent = 'Invalid credentials.';
-      beep(220,0.12,'sawtooth',0.12);
-    }
+    if(users[u] && users[u].password === p){ localStorage.setItem(STORAGE.CURRENT, u); render(); playAudio('spin'); }
+    else { $('#msg').textContent = 'Invalid credentials'; synthTone(160,0.12,'sawtooth',0.08); }
   };
 }
-
-function showRegisterForm(){
-  const area = $('#authArea');
-  area.innerHTML = `
-    <div style="margin-top:12px">
-      <div class="field"><label>Full name</label><input id="rName" type="text" /></div>
-      <div class="field"><label>Email</label><input id="rEmail" type="email" /></div>
-      <div class="field"><label>Username</label><input id="rUser" type="text" /></div>
-      <div class="field"><label>Password</label><input id="rPass" type="password" /></div>
-      <div style="display:flex;gap:8px"><button id="doReg" class="btn">Register</button><button id="cancel2" class="btn-ghost btn">Cancel</button></div>
-      <div id="regMsg" class="muted small" style="margin-top:8px"></div>
+function showRegister(){
+  $('#authArea').innerHTML = `
+    <div>
+      <div class="field"><label class="muted">Name</label><input id="rName" /></div>
+      <div class="field"><label class="muted">Username</label><input id="rUser" /></div>
+      <div class="field"><label class="muted">Password</label><input id="rPass" type="password" /></div>
+      <div style="display:flex;gap:8px"><button id="doReg" class="btn">Register</button><button id="cancel2" class="btn btn-ghost">Cancel</button></div>
+      <div id="rmsg" class="muted small" style="margin-top:8px"></div>
     </div>
   `;
-  $('#cancel2').onclick = ()=> { $('#authArea').innerHTML=''; };
-  $('#doReg').onclick = ()=> {
-    const name = $('#rName').value.trim();
-    const email = $('#rEmail').value.trim().toLowerCase();
-    const username = $('#rUser').value.trim();
-    const pass = $('#rPass').value;
-    if (!name || !email || !username || !pass) { $('#regMsg').textContent = 'Fill all fields.'; return; }
+  $('#cancel2').onclick = ()=> $('#authArea').innerHTML='';
+  $('#doReg').onclick = ()=>{
+    const name = $('#rName').value.trim(), u = $('#rUser').value.trim(), p = $('#rPass').value;
+    if(!name||!u||!p){ $('#rmsg').textContent='Fill all fields'; return; }
     const users = getUsers();
-    if (users[username]) { $('#regMsg').textContent = 'Username taken.'; return; }
-    if (Object.values(users).some(u=>u.email===email)) { $('#regMsg').textContent = 'Email already used.'; return; }
-    users[username] = { username, name, email, password: pass };
+    if(users[u]){ $('#rmsg').textContent='Username taken'; return; }
+    users[u] = { name, username:u, password:p, email:'' };
     saveUsers(users);
-    // set initial balance
-    const balances = getBalances(); balances[username] = DEFAULT_BALANCE; save(STORAGE_KEYS.BALANCES, balances);
-    setCurrent(username);
-    $('#regMsg').textContent = 'Registered. Redirecting to dashboard...';
-    beep(880,0.08,'sine',0.08);
-    setTimeout(()=> navigate('dashboard'), 700);
+    const balances = getBalances(); balances[u] = DEFAULT_BAL; save(STORAGE.BAL, balances);
+    localStorage.setItem(STORAGE.CURRENT, u);
+    synthTone(880,0.08); render();
   };
-}
-
-/* Balance widget */
-function renderBalanceWidget(){
-  const cur = getCurrent();
-  const widget = document.getElementById('balanceWidget');
-  if (!cur) { widget.style.display='none'; return; }
-  widget.style.display='block';
-  $('#balanceAmount').textContent = formatMoney(getBalanceFor(cur));
-  const users = getUsers();
-  const u = users[cur] || { name: cur, email: '' };
-  $('#profileName').textContent = u.name || cur;
-  $('#profileEmail').textContent = u.email || '';
-  $('#btnLogout').onclick = ()=> { setCurrent(null); localStorage.removeItem(STORAGE_KEYS.CURRENT); render(); };
-  $('#btnProfile').onclick = ()=> showProfileModal(u);
-}
-
-/* Profile modal */
-function showProfileModal(user){
-  const modal = document.createElement('div'); modal.className='modal';
-  modal.innerHTML = `<div class="panel">
-    <h3 style="margin:0 0 8px">Profile</h3>
-    <div class="small muted">Name</div><div style="font-weight:700">${user.name}</div>
-    <div class="small muted" style="margin-top:8px">Email</div><div>${user.email}</div>
-    <div style="margin-top:12px;display:flex;gap:8px"><button id="closeProf" class="btn">Close</button></div>
-  </div>`;
-  document.body.appendChild(modal);
-  $('#closeProf').onclick = ()=> modal.remove();
 }
 
 /* Dashboard */
-const SAMPLE_SLOTS = [
-  { id:'classic', title:'Classic Reels', img:'', desc:'Simple 3x3 slot with gamble and jackpot.' },
-  { id:'egt-like', title:'EGT Inspired', img:'', desc:'Advanced slot with paylines, bonus and sounds.' },
-  { id:'highroller', title:'High Roller', img:'', desc:'Higher variance, bigger jackpot.' }
-];
-
 function renderDashboard(){
-  const cur = getCurrent();
-  if (!cur) { navigate('login'); return; }
+  const cur = getCurrent(); if(!cur){ navigate(''); return; }
   app.innerHTML = `
-    <div class="app">
-      <header><div><h1>Dashboard</h1><div class="desc muted">Choose a slot and play. Balance persists locally.</div></div><div class="small muted">User: <strong>${cur}</strong></div></header>
+    <div class="wrap">
+      <header><div><h1>Dashboard</h1><div class="muted">Choose a slot and play — enhanced visuals</div></div><div class="muted">User: <strong>${cur}</strong></div></header>
       <section class="panel">
-        <h3 style="margin-top:0">Available Slots</h3>
+        <h3 style="margin:0 0 8px">Slots</h3>
         <div class="slots" id="slotsList"></div>
       </section>
-      <aside class="sidebar panel">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><div class="small muted">Jackpot</div><div style="font-weight:800;color:#ffd700" id="jackpotVal">${formatMoney(getJackpot())}</div></div>
-          <div><button class="btn" id="refreshBtn">Refresh</button></div>
-        </div>
-        <div style="margin-top:12px">
-          <div class="small muted">Quick actions</div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn btn-ghost" id="addFunds">+ Add 50₾</button>
-            <button class="btn btn-ghost" id="withdraw" style="opacity:0.8">- Withdraw 50₾</button>
-          </div>
-        </div>
-        <div style="margin-top:12px" class="small muted">Profile</div>
-        <div style="margin-top:8px"><button class="btn" id="openProfile">Open Profile</button></div>
+      <aside class="panel">
+        <div class="muted">Jackpot</div>
+        <div style="font-weight:800;color:#ffd700;margin-top:6px" id="jackVal">${formatMoney(getJack())}</div>
+        <div style="margin-top:12px" class="muted">Balance</div>
+        <div style="font-weight:800;margin-top:6px" id="dashBal">${formatMoney(getBalance(cur))}</div>
+        <div style="margin-top:12px"><button id="add50" class="btn btn-ghost">+50₾</button><button id="logout" class="btn btn-ghost" style="margin-left:8px">Logout</button></div>
+        <div style="margin-top:12px" class="muted">Uploads</div>
+        <div style="margin-top:8px"><button id="openUploads" class="btn btn-ghost">Open Uploads</button></div>
       </aside>
-      <footer>Built as static demo — no backend. Balance stored locally.</footer>
     </div>
   `;
+  const slots = [
+    {id:'burning', title:'Burning Hot Deluxe', desc:'Classic hot symbols, wilds and gamble'},
+    {id:'egt', title:'EGT Style Deluxe', desc:'Paylines, bonus, free spins'},
+    {id:'mega', title:'Mega Lines', desc:'High variance, many lines'}
+  ];
   const list = $('#slotsList');
-  SAMPLE_SLOTS.forEach(s=>{
+  slots.forEach(s=>{
     const card = document.createElement('div'); card.className='slot-card';
-    card.innerHTML = `<img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='600' height='300'><rect width='100%' height='100%' fill='%230b1220'/><text x='50%' y='50%' fill='%23ffdca3' font-size='28' font-family='Arial' text-anchor='middle' dominant-baseline='middle'>${encodeURIComponent(s.title)}</text></svg>" alt="${s.title}"><h3>${s.title}</h3><div class="muted" style="font-size:13px">${s.desc}</div><div class="slot-meta" style="margin-top:8px"><button class="btn" data-id="${s.id}">Play</button><div class="small muted">Volatility: medium</div></div>`;
+    card.innerHTML = `<h3>${s.title}</h3><div class="muted">${s.desc}</div><div style="margin-top:8px"><button class="btn" data-id="${s.id}">Play</button></div>`;
     list.appendChild(card);
   });
-  // actions
-  $all('.slot-card .btn').forEach(b=> b.onclick = (e)=> {
-    const id = e.currentTarget.dataset.id;
-    navigate('slot/' + id);
-  });
-  $('#refreshBtn').onclick = ()=> { $('#jackpotVal').textContent = formatMoney(getJackpot()); beep(660,0.06); };
-  $('#addFunds').onclick = ()=> {
-    const cur = getCurrent();
-    const bal = getBalanceFor(cur) + 50;
-    setBalanceFor(cur, bal);
-    beep(880,0.06);
-  };
-  $('#withdraw').onclick = ()=> {
-    const cur = getCurrent();
-    const bal = Math.max(0, getBalanceFor(cur) - 50);
-    setBalanceFor(cur, bal);
-    beep(220,0.06);
-  };
-  $('#openProfile').onclick = ()=> showProfileModal(getUsers()[getCurrent()]);
+  $all('.slot-card .btn').forEach(b=> b.onclick = e=> navigate('play/'+e.currentTarget.dataset.id));
+  $('#add50').onclick = ()=> { const u=getCurrent(); setBalance(u, getBalance(u)+50); playAudio('win'); $('#dashBal').textContent = formatMoney(getBalance(u)); };
+  $('#logout').onclick = ()=> { setCurrent(null); synthTone(220,0.06); };
+  $('#openUploads').onclick = ()=> openUploadModal();
 }
 
-/* Slot game renderer */
-function renderSlot(id){
-  const cur = getCurrent();
-  if (!cur) { navigate('login'); return; }
-  // slot config defaults
-  const config = {
-    reels: 5,
-    rows: 3,
-    symbols: ['A','K','Q','J','10','7','BAR','BONUS','CHERRY'],
-    paylines: 10,
-    minLines: 5,
-    maxLines: 20,
-    betOptions: [0.5,1,2,5,10,20],
-    jackpotChance: 0.0005 // base chance per spin to hit jackpot
-  };
+/* Format */
+function formatMoney(n){ return Number(n).toFixed(2) + ' ₾'; }
+function renderBalance(){ const cur = getCurrent(); const w = document.getElementById('balanceWidget'); if(!cur){ w.style.display='none'; return; } w.style.display='block'; $('#balanceAmount').textContent = formatMoney(getBalance(cur)); }
+function renderJack(){ const el = document.getElementById('jackVal'); if(el) el.textContent = formatMoney(getJack()); }
+
+/* Slot engine (polished) */
+function renderGame(slotId){
+  const cur = getCurrent(); if(!cur){ navigate(''); return; }
   app.innerHTML = `
-    <div class="app">
-      <header><div><h1>Playing: ${id}</h1><div class="desc muted">Slot: ${id} — choose bet, lines and spin.</div></div><div class="small muted">User: <strong>${cur}</strong></div></header>
-      <section class="panel" style="grid-column:1/2">
-        <div class="game-wrap">
-          <div>
-            <div class="reels panel" id="reelsArea">
-              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-                <div class="small muted">Reels: ${config.reels} x ${config.rows}</div>
-                <div class="small muted">Lines: <span id="linesCount">${config.paylines}</span></div>
-              </div>
-              <div id="reelGrid"></div>
-              <div style="display:flex;gap:8px;margin-top:8px">
-                <button id="spinBtn" class="btn">Spin</button>
-                <button id="autoBtn" class="btn btn-ghost">Auto x10</button>
-                <button id="collectBtn" class="btn btn-ghost">Collect</button>
-              </div>
-              <div class="log" id="gameLog"></div>
+    <div class="wrap">
+      <header><div><h1>Playing: ${slotId}</h1><div class="muted">Animated reels, wilds, bonus and gamble</div></div><div class="muted">User: <strong>${cur}</strong></div></header>
+      <section class="panel game">
+        <div class="machine">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div class="muted">Reels: 5 x 3</div>
+            <div class="muted">Lines: <span id="linesCount">10</span></div>
+          </div>
+          <div class="reels" id="reelsArea"></div>
+          <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
+            <button id="spinBtn" class="btn">SPIN</button>
+            <button id="autoBtn" class="btn btn-ghost">Auto x10</button>
+            <div style="margin-left:auto">
+              <select id="betSel" class="select"></select>
             </div>
           </div>
-          <div class="controls panel">
-            <div class="small muted">Bet per line</div>
-            <select id="betSelect" class="select"></select>
-            <div style="margin-top:8px" class="small muted">Lines (5–20)</div>
-            <input id="linesRange" type="range" min="${config.minLines}" max="${config.maxLines}" value="${config.paylines}" style="width:100%;margin-top:6px" />
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
-              <div><div class="small muted">Total Bet</div><div id="totalBet" style="font-weight:800">0</div></div>
-              <div><div class="small muted">Last Win</div><div id="lastWin" style="font-weight:800">0</div></div>
-            </div>
-            <div style="margin-top:12px">
-              <div class="small muted">Gamble (after win)</div>
-              <div style="display:flex;gap:8px;margin-top:6px">
-                <button id="gambleRed" class="btn btn-ghost">Red</button>
-                <button id="gambleBlack" class="btn btn-ghost">Black</button>
-              </div>
-            </div>
-            <div style="margin-top:12px">
-              <div class="small muted">Bonus</div>
-              <div id="bonusInfo" class="muted small">Hit 3 BONUS symbols for free spins.</div>
-            </div>
-            <div style="margin-top:12px">
-              <div class="small muted">Jackpot</div>
-              <div id="jackpotPanel" style="font-weight:800;color:#ffd700">${formatMoney(getJackpot())}</div>
-            </div>
-          </div>
+          <div class="log" id="gameLog"></div>
         </div>
+        <aside class="panel controls">
+          <div class="muted">Balance</div>
+          <div style="font-weight:800;margin-top:6px" id="gBalance">${formatMoney(getBalance(cur))}</div>
+          <div style="margin-top:12px" class="muted">Lines (5–20)</div>
+          <input id="linesRange" type="range" min="5" max="20" value="10" style="width:100%;margin-top:6px" />
+          <div class="paylines" id="paylines"></div>
+          <div style="margin-top:12px" class="muted">Last Win</div>
+          <div id="lastWin" style="font-weight:800">0.00 ₾</div>
+          <div style="margin-top:12px" class="muted">Gamble</div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <button id="redBtn" class="btn btn-ghost">Red</button>
+            <button id="blackBtn" class="btn btn-ghost">Black</button>
+          </div>
+          <div style="margin-top:12px" class="muted">Jackpot</div>
+          <div id="jackPanel" style="font-weight:800;color:#ffd700">${formatMoney(getJack())}</div>
+        </aside>
       </section>
-      <aside class="sidebar panel">
-        <div class="small muted">Balance</div>
-        <div style="font-weight:800;font-size:18px" id="gameBalance">${formatMoney(getBalanceFor(cur))}</div>
-        <div style="margin-top:12px">
-          <div class="small muted">Profile</div>
-          <div style="margin-top:6px"><button class="btn" id="openProfile2">Profile</button></div>
-        </div>
-        <div style="margin-top:12px">
-          <div class="small muted">Quick</div>
-          <div style="display:flex;gap:8px;margin-top:8px">
-            <button class="btn btn-ghost" id="add10">+10₾</button>
-            <button class="btn btn-ghost" id="resetBal">Reset to 100₾</button>
-          </div>
-        </div>
-      </aside>
-      <footer style="grid-column:1/-1" class="muted small">Slot engine: simplified demo. All state saved locally.</footer>
     </div>
   `;
-
-  /* populate controls */
-  const betSelect = $('#betSelect');
-  config.betOptions.forEach(b=> { const o = document.createElement('option'); o.value = b; o.textContent = b + ' ₾'; betSelect.appendChild(o); });
-  $('#linesRange').value = config.paylines;
-  $('#linesCount').textContent = config.paylines;
-  updateTotalBet();
-
-  /* render reels grid */
-  const reelGrid = $('#reelGrid');
-  function drawReelsGrid(matrix){
-    reelGrid.innerHTML = '';
-    for (let r=0;r<config.rows;r++){
-      const row = document.createElement('div'); row.className='reel-row';
-      for (let c=0;c<config.reels;c++){
-        const cell = document.createElement('div'); cell.className='reel';
-        cell.textContent = matrix && matrix[c] ? matrix[c][r] : '—';
-        row.appendChild(cell);
-      }
-      reelGrid.appendChild(row);
+  // build reels
+  const reelsArea = $('#reelsArea');
+  const REELS = 5, ROWS = 3;
+  const SYMBOL_POOL = buildSymbolPool();
+  for(let i=0;i<REELS;i++){
+    const r = document.createElement('div'); r.className='reel'; r.dataset.idx = i;
+    const strip = document.createElement('div'); strip.className='strip';
+    for(let k=0;k<40;k++){
+      const s = SYMBOL_POOL[Math.floor(Math.random()*SYMBOL_POOL.length)];
+      const sym = document.createElement('div'); sym.className='symbol';
+      sym.dataset.sym = s.id;
+      if(s.special==='wild') sym.classList.add('wild');
+      if(s.special==='bonus') sym.classList.add('bonus');
+      sym.textContent = s.label;
+      strip.appendChild(sym);
     }
+    r.appendChild(strip); reelsArea.appendChild(r);
   }
-  // initial empty
-  drawReelsGrid();
+  applySymbolImagesToEngine();
 
-  /* game state */
-  let autoCount = 0;
-  let lastWin = 0;
-  let freeSpins = 0;
+  // controls
+  const betSel = $('#betSel');
+  [0.5,1,2,5,10,20].forEach(b=>{ const o=document.createElement('option'); o.value=b; o.textContent=b+' ₾'; betSel.appendChild(o); });
+  const linesRange = $('#linesRange'); const linesCount = $('#linesCount'); linesRange.oninput = ()=> { linesCount.textContent = linesRange.value; renderPaylines(linesRange.value); updateTotal(); };
+  renderPaylines(linesRange.value);
+  function renderPaylines(n){ const wrap = $('#paylines'); wrap.innerHTML=''; for(let i=1;i<=n;i++){ const p=document.createElement('div'); p.className='line-pill'; p.textContent='Line '+i; wrap.appendChild(p); } }
+  function updateTotal(){ $('#lastWin').textContent = formatMoney(0); $('#gBalance').textContent = formatMoney(getBalance(cur)); }
 
-  function updateTotalBet(){
-    const lines = Number($('#linesRange').value);
-    const bet = Number(betSelect.value);
-    $('#totalBet').textContent = formatMoney(lines * bet);
+  // spin logic
+  let spinning=false, lastWin=0, autoCount=0;
+  function spin(){
+    if(spinning) return;
+    const bet = Number(betSel.value), lines = Number(linesRange.value), totalBet = bet*lines;
+    if(getBalance(cur) < totalBet){ log('Insufficient balance'); playAudio('lose'); return; }
+    setBalance(cur, getBalance(cur)-totalBet);
+    $('#gBalance').textContent = formatMoney(getBalance(cur));
+    playAudio('spin');
+    spinning=true; lastWin=0;
+    const reelEls = $all('.reel');
+    reelEls.forEach((r, idx)=>{
+      const strip = r.querySelector('.strip');
+      const symbolHeight = 96;
+      const spins = 30 + Math.floor(Math.random()*20) + idx*6;
+      const finalIndex = Math.floor(Math.random()*30);
+      const translateY = -(spins*symbolHeight + finalIndex*symbolHeight);
+      strip.style.transition = 'transform 0.9s cubic-bezier(.2,.9,.2,1)';
+      strip.style.transform = `translateY(${translateY}px)`;
+      setTimeout(()=>{
+        strip.style.transition = 'transform 0.28s cubic-bezier(.2,.9,.2,1)';
+        strip.style.transform = `translateY(${translateY + 18}px)`;
+        setTimeout(()=>{ strip.style.transform = `translateY(${translateY}px)`; }, 120);
+        playAudio('reel_stop');
+        if(idx === reelEls.length-1){
+          setTimeout(()=>{ spinning=false; evaluateSpin(collectVisibleSymbols()); }, 260);
+        }
+      }, 300 + idx*260);
+    });
   }
-  betSelect.onchange = updateTotalBet;
-  $('#linesRange').oninput = ()=> { $('#linesCount').textContent = $('#linesRange').value; updateTotalBet(); };
 
-  function log(msg){
-    const el = $('#gameLog');
-    const time = new Date().toLocaleTimeString();
-    el.innerHTML = `<div style="margin-bottom:6px"><span class="muted" style="margin-right:8px">${time}</span>${msg}</div>` + el.innerHTML;
-  }
-
-  function spinOnce(){
-    const user = getCurrent();
-    const balance = getBalanceFor(user);
-    const lines = Number($('#linesRange').value);
-    const bet = Number(betSelect.value);
-    const totalBet = lines * bet;
-    if (totalBet <= 0) { log('Set a bet first'); beep(220,0.06); return; }
-    if (balance < totalBet) { log('Insufficient balance'); beep(220,0.12); return; }
-    // debit
-    setBalanceFor(user, balance - totalBet);
-    $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
-    // spin logic: generate matrix [reel][rows]
-    const symbols = config.symbols;
+  function collectVisibleSymbols(){
+    const reelEls = $all('.reel');
     const matrix = [];
-    for (let c=0;c<config.reels;c++){
-      matrix[c] = [];
-      for (let r=0;r<config.rows;r++){
-        // weighted random: make high symbols rarer
-        const rnd = Math.random();
-        let sym;
-        if (rnd < 0.02) sym = 'JACK'; // very rare
-        else if (rnd < 0.08) sym = 'BONUS';
-        else if (rnd < 0.20) sym = 'CHERRY';
-        else sym = symbols[Math.floor(Math.random()*symbols.length)];
-        matrix[c][r] = sym;
+    reelEls.forEach(r=>{
+      const strip = r.querySelector('.strip');
+      const children = Array.from(strip.children);
+      const style = window.getComputedStyle(strip);
+      const transform = style.transform;
+      let ty = 0;
+      if(transform && transform !== 'none'){
+        const m = transform.match(/matrix\\(([^)]+)\\)/);
+        if(m){ const vals = m[1].split(','); ty = parseFloat(vals[5]); }
       }
-    }
-    drawReelsGrid(matrix);
-    beep(600,0.06,'sine',0.06);
-    // evaluate wins: simple rule: count matching symbols on middle row across first 3 reels for demo
-    const middleRow = Math.floor(config.rows/2);
-    const midSymbols = matrix.map(col => col[middleRow]);
-    // simple paytable
-    const paytable = { 'JACK': 500, 'BONUS':0, 'CHERRY': 5, 'A': 3, 'K':2, 'Q':2, 'J':1, '10':1, '7':2, 'BAR':10 };
-    // count longest run from left
+      const symbolHeight = 96;
+      const offset = Math.abs(Math.round(ty / symbolHeight));
+      const col = [];
+      for(let rIdx=0;rIdx<ROWS;rIdx++){
+        const idx = (offset + rIdx) % children.length;
+        col.push(children[idx].dataset.sym || children[idx].textContent);
+      }
+      matrix.push(col);
+    });
+    return matrix;
+  }
+
+  function evaluateSpin(matrix){
+    const mid = Math.floor(ROWS/2);
+    const midSymbols = matrix.map(col => col[mid]);
+    function eq(a,b){ if(a==='WILD' || b==='WILD') return true; return a===b; }
     let runSym = midSymbols[0], runLen=1;
-    for (let i=1;i<midSymbols.length;i++){
-      if (midSymbols[i] === runSym) runLen++; else break;
-    }
+    for(let i=1;i<midSymbols.length;i++){ if(eq(midSymbols[i], runSym)) runLen++; else break; }
+    const pay = {'7':200,'BAR':50,'A':20,'K':15,'Q':12,'J':10,'CH':8,'WILD':100,'BONUS':0};
     let win = 0;
-    if (paytable[runSym] && runLen>=3) {
-      win = paytable[runSym] * bet * runLen;
-    }
-    // bonus: if 3+ BONUS anywhere -> free spins
+    if(runLen>=3){ const base = pay[runSym] || 0; win = base * Number($('#betSel').value) * runLen; }
     const bonusCount = matrix.flat().filter(s=>s==='BONUS').length;
-    if (bonusCount >= 3) {
-      freeSpins += 5;
-      log(`BONUS! You won 5 free spins (found ${bonusCount} BONUS).`);
-      beep(1200,0.12,'sine',0.12);
+    if(bonusCount>=3){
+      const free = 5;
+      sessionStorage.setItem('cs_free', (Number(sessionStorage.getItem('cs_free')||0)+free));
+      log(`BONUS! ${free} free spins awarded.`);
+      playAudio('big_win');
+      spawnParticles(window.innerWidth/2, 200, '#ffb86b', 80);
     }
-    // jackpot chance
-    const jackpot = getJackpot();
-    if (Math.random() < config.jackpotChance) {
-      // award jackpot
-      const jwin = jackpot;
-      setBalanceFor(user, getBalanceFor(user) + jwin);
-      setJackpot(1000); // reset
-      log(`JACKPOT! You won ${formatMoney(jwin)}!`);
-      lastWin = jwin;
-      $('#lastWin').textContent = formatMoney(lastWin);
-      $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
-      beep(200,0.4,'sine',0.18);
+    if(Math.random() < 0.001){
+      const j = getJack();
+      setBalance(cur, getBalance(cur)+j);
+      setJack(1000);
+      log(`JACKPOT! You won ${formatMoney(j)}!`);
+      playAudio('mega_win');
+      spawnParticles(window.innerWidth/2, 200, '#ffd700', 160);
       return;
     } else {
-      // small contribution to jackpot
-      setJackpot(getJackpot() + totalBet * 0.02);
-      $('#jackpotPanel').textContent = formatMoney(getJackpot());
+      setJack(getJack() + Number($('#betSel').value)*Number($('#linesRange').value)*0.02);
     }
-    // apply win
-    if (win > 0) {
-      setBalanceFor(user, getBalanceFor(user) + win);
+    if(win>0){
+      setBalance(cur, getBalance(cur)+win);
       lastWin = win;
       $('#lastWin').textContent = formatMoney(lastWin);
-      $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
-      log(`Win: ${formatMoney(win)} (symbol ${runSym} x${runLen})`);
-      beep(1000,0.12,'triangle',0.12);
+      $('#gBalance').textContent = formatMoney(getBalance(cur));
+      log(`Win ${formatMoney(win)} (symbol ${runSym} x${runLen})`);
+      playAudio('win');
+      spawnParticles(window.innerWidth/2, 200, '#ffd700', 60);
+      highlightWinningLine();
     } else {
       lastWin = 0;
       $('#lastWin').textContent = formatMoney(0);
-      log(`No win. Spent ${formatMoney(totalBet)}.`);
-      beep(180,0.06,'sawtooth',0.06);
+      log('No win this spin.');
+      playAudio('lose');
     }
+    $('#gBalance').textContent = formatMoney(getBalance(cur));
+    $('#jackPanel').textContent = formatMoney(getJack());
   }
 
-  $('#spinBtn').onclick = ()=> {
-    if (freeSpins > 0) {
-      freeSpins--;
-      log('Free spin used. Remaining: ' + freeSpins);
-      spinOnce();
-    } else {
-      spinOnce();
-    }
-  };
+  function highlightWinningLine(){
+    const reelEls = $all('.reel');
+    reelEls.forEach(r=>{
+      const strip = r.querySelector('.strip');
+      const children = Array.from(strip.children);
+      children.forEach(c=> c.classList.remove('highlight'));
+      const center = 2;
+      const target = children[center];
+      if(target){ target.classList.add('highlight'); setTimeout(()=> target.classList.remove('highlight'), 1400); }
+    });
+  }
 
+  function log(msg){ const el = $('#gameLog'); el.innerHTML = `<div style="margin-bottom:6px"><span class="muted">${new Date().toLocaleTimeString()}</span> ${msg}</div>` + el.innerHTML; }
+
+  $('#spinBtn').onclick = ()=> { spin(); };
   $('#autoBtn').onclick = ()=> {
     autoCount = 10;
-    const runAuto = ()=> {
-      if (autoCount <= 0) return;
-      spinOnce();
-      autoCount--;
-      setTimeout(()=> runAuto(), 700);
-    };
-    runAuto();
+    const run = ()=>{ if(autoCount<=0) return; spin(); autoCount--; setTimeout(run, 900); };
+    run();
   };
 
-  $('#collectBtn').onclick = ()=> {
-    // collect last win (already added to balance), but allow gamble
-    log('Collect pressed. You can gamble last win by choosing Red/Black.');
-  };
-
-  // gamble red/black: 50/50 on lastWin
-  $('#gambleRed').onclick = ()=> doGamble('red');
-  $('#gambleBlack').onclick = ()=> doGamble('black');
-
+  $('#redBtn').onclick = ()=> doGamble('red');
+  $('#blackBtn').onclick = ()=> doGamble('black');
   function doGamble(choice){
-    if (lastWin <= 0) { log('No win to gamble.'); beep(220,0.08); return; }
+    if(lastWin<=0){ log('No win to gamble'); return; }
     const color = Math.random() < 0.5 ? 'red' : 'black';
-    if (choice === color) {
-      // double
-      const user = getCurrent();
-      setBalanceFor(user, getBalanceFor(user) + lastWin); // add extra equal to lastWin
-      lastWin = lastWin * 2;
+    if(choice===color){
+      setBalance(cur, getBalance(cur)+lastWin);
+      lastWin = lastWin*2;
       $('#lastWin').textContent = formatMoney(lastWin);
-      $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
-      log(`Gamble success! Color ${color}. Win doubled to ${formatMoney(lastWin)}.`);
-      beep(1200,0.12,'sine',0.12);
+      $('#gBalance').textContent = formatMoney(getBalance(cur));
+      log(`Gamble win! Color ${color}. Win doubled to ${formatMoney(lastWin)}.`);
+      playAudio('big_win');
+      spawnParticles(window.innerWidth/2, 200, '#2ecc71', 80);
     } else {
-      // lose the lastWin (remove it)
-      const user = getCurrent();
-      setBalanceFor(user, Math.max(0, getBalanceFor(user) - lastWin));
-      log(`Gamble lost. Color was ${color}. You lost ${formatMoney(lastWin)}.`);
+      setBalance(cur, Math.max(0, getBalance(cur)-lastWin));
+      log(`Gamble lost. Color was ${color}. Lost ${formatMoney(lastWin)}.`);
       lastWin = 0;
       $('#lastWin').textContent = formatMoney(0);
-      $('#gameBalance').textContent = formatMoney(getBalanceFor(user));
-      beep(160,0.18,'sawtooth',0.12);
+      $('#gBalance').textContent = formatMoney(getBalance(cur));
+      playAudio('lose');
     }
   }
 
-  // profile and quick actions
-  $('#openProfile2').onclick = ()=> showProfileModal(getUsers()[getCurrent()]);
-  $('#add10').onclick = ()=> { setBalanceFor(getCurrent(), getBalanceFor(getCurrent()) + 10); $('#gameBalance').textContent = formatMoney(getBalanceFor(getCurrent())); beep(880,0.06); };
-  $('#resetBal').onclick = ()=> { setBalanceFor(getCurrent(), DEFAULT_BALANCE); $('#gameBalance').textContent = formatMoney(getBalanceFor(getCurrent())); beep(440,0.06); };
-
-  // initial UI
-  $('#jackpotPanel').textContent = formatMoney(getJackpot());
-  $('#gameBalance').textContent = formatMoney(getBalanceFor(getCurrent()));
+  $('#gBalance').textContent = formatMoney(getBalance(cur));
+  $('#jackPanel').textContent = formatMoney(getJack());
+  $('#lastWin').textContent = formatMoney(0);
 }
 
-/* Start app */
-window.addEventListener('hashchange', render);
-render();
+/* Symbol pool builder */
+function buildSymbolPool(){
+  return [
+    {id:'7', label:'7', weight:6},
+    {id:'BAR', label:'BAR', weight:5},
+    {id:'A', label:'A', weight:8},
+    {id:'K', label:'K', weight:9},
+    {id:'Q', label:'Q', weight:10},
+    {id:'J', label:'J', weight:11},
+    {id:'CH', label:'🍒', weight:12},
+    {id:'WILD', label:'WILD', weight:3, special:'wild'},
+    {id:'BONUS', label:'BONUS', weight:4, special:'bonus'}
+  ];
+}
 
-/* Expose for debugging */
-window._cs = { getUsers, getBalances, getCurrent, setBalanceFor, getJackpot, setJackpot };
+/* Small helpers */
+function $(s,root=document){ return root.querySelector(s); }
+function $all(s,root=document){ return Array.from(root.querySelectorAll(s)); }
+
+/* Init: preload repo images and audio, then render */
+(async function init(){
+  await preloadRepoImages();
+  await preloadAudio();
+  applySymbolImagesToEngine();
+  render();
+  renderBalance();
+  renderJack();
+})();
+
+/* Expose debug */
+window._cs = { getUsers, getBalance, setBalance, getJack, setJack, loadSymbolImages };
+
+/* Console hint */
+console.log('Loaded Chaos Slot Deluxe. Place images in assets/images/ and audio in assets/audio/ or use Upload Symbols to add images in-browser.');
 </script>
 </body>
 </html>
