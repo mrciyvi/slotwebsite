@@ -7,17 +7,15 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
 <script>
-  // ფუნქცია, რომელიც მანამ დაიცდის, სანამ Firebase არ ჩაიტვირთება
-  function initFirebase() {
-    if (typeof firebase !== 'undefined') {
-      const firebaseConfig = {
+  const firebaseConfig = {
         apiKey: "AIzaSyBEQnl0YOxLEchYsdDmbrqKGFvALSyvLfA",
         authDomain: "slotmachine-a9ff4.firebaseapp.com",
         databaseURL: "https://slotmachine-a9ff4-default-rtdb.europe-west1.firebasedatabase.app",
         projectId: "slotmachine-a9ff4",
         storageBucket: "slotmachine-a9ff4.firebasestorage.app",
         messagingSenderId: "1053857390923",
-        appId: "1:1053857390923:web:5d37a845dd4f370cc948ce"
+        appId: "1:1053857390923:web:5d37a845dd4f370cc948ce",
+        measurementId: "G-QTBG5HQ5PM"
       };
 
       firebase.initializeApp(firebaseConfig);
@@ -616,6 +614,10 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
     <div class="hist-title">ბოლო თამაშები</div>
 
     <div id="histList"></div>
+    <div class="hist-title" style="margin-top:20px; color:var(--gold2)">🏆 TOP მოთამაშეები (ლიდერბორდი)</div>
+    <div id="leaderboardList" style="background: rgba(212,160,23,0.05); border-radius: 12px; padding: 5px; border: 1px solid var(--border);">
+        <div style="text-align:center; padding:10px; font-size:12px; color:var(--muted)">იტვირთება...</div>
+    </div>
 
   </div>
 
@@ -946,15 +948,13 @@ function doLogout(){setCur(null);slotLoopActive=false;rouLoopActive=false;showSc
 ===================================================== */
 
 function goLobby(){
-
-  slotLoopActive=false;rouLoopActive=false;
-
-  showScreen('sLobby');updateHeader(false,true);
-
-  document.getElementById('jpLobby').textContent=fmtM(getJack());
-
+  slotLoopActive = false;
+  rouLoopActive = false;
+  showScreen('sLobby');
+  updateHeader(false, true);
+  document.getElementById('jpLobby').textContent = fmtM(getJack());
   renderHist();
-
+  updateLeaderboard(); // <--- აი ეს ხაზი დაამატე აქ
 }
 
 function addBalance(amt){
