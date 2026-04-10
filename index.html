@@ -1498,8 +1498,10 @@ function chBet(d){if(sSpinning)return;sBetIdx=Math.max(0,Math.min(SBETS.length-1
  /* =====================================================
    ROULETTE ENGINE (გამართული ვერსია)
 ===================================================== */
+/* =====================================================
+   ROULETTE ENGINE (სრულად გამართული ვერსია)
+===================================================== */
 
-// 1. ჯერ აღვწეროთ ცვლადები
 let rouCtx, rouSZ;
 let rouSpinning = false;
 let rouAngle = 0;
@@ -1511,26 +1513,22 @@ let rouResult = null;
 let rouLoopActive = false;
 let curChip = 1;
 let rBets = {};
-let prevBets = {};
 
-const WHEEL = [0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
-const REDS = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 
-// 2. ფუნქცია, რომელიც რულეტკას ხსნის (ეს აკლდა შენს ბრაუზერს)
+// მთავარი ფუნქცია - ამას იძახებს HTML ღილაკი
 function goRoulette() {
-    console.log("რულეტკა იხსნება..."); // შემოწმებისთვის
+    console.log("რულეტკა გააქტიურდა");
     if (typeof getAC === 'function') getAC();
     
-    // ეკრანის გადართვა
     showScreen('sRou');
-    if (typeof updateHeader === 'function') updateHeader(true, true);
+    updateHeader(true, true);
     
-    // მაგიდის და ცვლადების ინიციალიზაცია
     buildBetTable();
     initRou();
     
     rBets = {};
-    prevBets = {};
     rouResult = null;
     rouSpinning = false;
     rouAngle = 0;
@@ -1541,13 +1539,123 @@ function goRoulette() {
     updateRouUI();
     showRouMsg('განათავსეთ ფსონი', false);
     
-    document.getElementById('rouNumEl').style.display = 'none';
-    document.getElementById('rouLastWin').textContent = '₾0.00';
+    const numEl = document.getElementById('rouNumEl');
+    if (numEl) numEl.style.display = 'none';
     
     requestAnimationFrame(rouLoop);
 }
 
-// 3. მაგიდის აწყობა
+function initRou() {
+    const canvas = document.getElementById('rouCanvas');
+    if (!canvas) return;
+    rouCtx = canvas.getContext('2d');
+    const wrap = document.querySelector('.rou-left') || { clientWidth: 300 };
+    rouSZ = Math.min(wrap.clientWidth - 20, 300);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rouSZ * dpr; canvas.height = rouSZ * dpr;
+    canvas.style.width = rouSZ + 'px'; canvas.style.height = rouSZ + 'px';
+    rouCtx.scale(dpr, dpr);
+}
+
+// რულეტკის დატრიალების ფუნქცია (მიაბი შენს "ატრიალე" ღილაკს)
+function doRouSpin() {
+    if (rouSpinning || Object.keys(rBets).length === 0) return;
+    
+    rouSpinning = true;
+    rouVel = 0.1 + Math.random() * 0.05;
+    ballVel = 0.15 + Math.random() * 0.05;
+    ballAngle = Math.random() * Math.PI * 2;
+    
+    showRouMsg('ბურთი ტრიალებს...', false);
+    if (window.sndSpin) sndSpin();
+}
+
+function rouLoop() {
+    if (!rouLoopActive) return;
+    rouCtx.clearRect(0, 0, rouSZ, rouSZ);
+    const cx = rouSZ / 2, cy = rouSZ / 2;
+
+    // ბორბლის და ბურთის მოძრაობა
+    if (rouSpinning || ballVel > 0.005) {
+        rouAngle += rouVel; rouVel *= 0.996;
+        ballAngle -= ballVel; ballVel *= 0.992;
+        const R = rouSZ / 2 * 0.9;
+        ballR = R * 0.85;
+
+        if (ballVel < 0.005 && rouSpinning) {
+            rouSpinning = false;
+            setTimeout(findResult, 500);
+        }
+    }
+
+    // ბორბლის ვიზუალი (მარტივი)
+    rouCtx.save();
+    rouCtx.translate(cx, cy);
+    rouCtx.rotate(rouAngle);
+    rouCtx.beginPath();
+    rouCtx.arc(0, 0, rouSZ / 2 - 5, 0, Math.PI * 2);
+    rouCtx.strokeStyle = '#d4a017';
+    rouCtx.lineWidth = 8;
+    rouCtx.stroke();
+    rouCtx.restore();
+
+    // ბურთის ვიზუალი
+    if (ballVel > 0.001 || rouSpinning) {
+        const bx = cx + Math.cos(ballAngle) * ballR;
+        const by = cy + Math.sin(ballAngle) * ballR;
+        rouCtx.beginPath();
+        rouCtx.arc(bx, by, 6, 0, Math.PI * 2);
+        rouCtx.fillStyle = '#fff';
+        rouCtx.fill();
+        rouCtx.shadowBlur = 10; rouCtx.shadowColor = "#fff";
+    }
+
+    requestAnimationFrame(rouLoop);
+}
+
+function findResult() {
+    // მათემატიკურად გამოგვყავს რომელი ნომერია
+    const diff = (rouAngle - ballAngle) % (Math.PI * 2);
+    const idx = Math.floor(((diff < 0 ? diff + Math.PI * 2 : diff) / (Math.PI * 2)) * 37) % 37;
+    const res = WHEEL[idx];
+    
+    rouResult = res;
+    const el = document.getElementById('rouNumEl');
+    if (el) {
+        el.textContent = res;
+        el.style.display = 'inline-flex';
+        el.className = 'rou-num ' + (res === 0 ? 'grn-n' : (REDS.has(res) ? 'red-n' : 'blk-n'));
+    }
+    
+    checkRouWin(res);
+}
+
+function checkRouWin(res) {
+    let win = 0;
+    for (let [bet, amt] of Object.entries(rBets)) {
+        if (bet === 'n' + res) win += amt * 36;
+        else if (bet === 'red' && REDS.has(res)) win += amt * 2;
+        else if (bet === 'black' && res !== 0 && !REDS.has(res)) win += amt * 2;
+        else if (bet === 'even' && res !== 0 && res % 2 === 0) win += amt * 2;
+        else if (bet === 'odd' && res % 2 !== 0) win += amt * 2;
+    }
+
+    if (win > 0) {
+        const u = getCur();
+        setBal(u, getBal(u) + win);
+        showRouMsg('მოგება: ' + fmtM(win), true);
+        if (window.sndWin) sndWin();
+        if (win >= 100) showMega('დიდი მოგება!', win);
+    } else {
+        showRouMsg('სცადეთ თავიდან', false);
+        if (window.sndLose) sndLose();
+    }
+    
+    document.getElementById('rouLastWin').textContent = fmtM(win);
+    rBets = {};
+    setTimeout(updateRouUI, 1500);
+}
+
 function buildBetTable() {
     const tbl = document.getElementById('betTable');
     if (!tbl) return;
@@ -1556,90 +1664,44 @@ function buildBetTable() {
     const mainRow = document.createElement('div');
     mainRow.className = 'bt-row';
 
-    // 0
+    // 0 უჯრა
     const zCell = document.createElement('div');
     zCell.className = 'bt-cell gc';
-    zCell.style.cssText = 'min-width:30px; flex:0 0 30px;';
+    zCell.style.cssText = 'min-width:40px; flex:0 0 40px;';
     zCell.textContent = '0'; zCell.id = 'bc_n0';
     zCell.onclick = () => placeBet('n0');
     mainRow.appendChild(zCell);
 
-    // ციფრები
-    const gridDiv = document.createElement('div');
-    gridDiv.style.flex = '1';
-    for (let row = 0; row < 12; row++) {
-        const rowDiv = document.createElement('div');
-        rowDiv.className = 'bt-row';
-        for (let col = 0; col < 3; col++) {
-            let num = row * 3 + col + 1;
+    const grid = document.createElement('div');
+    grid.style.flex = '1';
+    for (let r = 0; r < 12; r++) {
+        const row = document.createElement('div');
+        row.className = 'bt-row';
+        for (let c = 0; c < 3; c++) {
+            let n = r * 3 + c + 1;
             let cell = document.createElement('div');
-            cell.className = 'bt-cell ' + (REDS.has(num) ? 'rc' : 'bc');
-            cell.textContent = num; cell.id = 'bc_n' + num;
-            cell.onclick = () => placeBet('n' + num);
-            rowDiv.appendChild(cell);
+            cell.className = 'bt-cell ' + (REDS.has(n) ? 'rc' : 'bc');
+            cell.textContent = n; cell.id = 'bc_n' + n;
+            cell.onclick = () => placeBet('n' + n);
+            row.appendChild(cell);
         }
-        gridDiv.appendChild(rowDiv);
+        grid.appendChild(row);
     }
-    mainRow.appendChild(gridDiv);
+    mainRow.appendChild(grid);
     tbl.appendChild(mainRow);
     
-    // ქვედა ფსონები
-    const eRow = document.createElement('div');
-    eRow.className = 'bt-row';
+    // სპეციალური ფსონები
+    const sRow = document.createElement('div');
+    sRow.className = 'bt-row';
     [['red','წითელი'],['black','შავი'],['even','ლუწი'],['odd','კენტი']].forEach(([k,l]) => {
         const c = document.createElement('div');
         c.className = 'bt-cell oc'; c.textContent = l; c.id = 'bc_' + k;
         c.onclick = () => placeBet(k);
-        eRow.appendChild(c);
+        sRow.appendChild(c);
     });
-    tbl.appendChild(eRow);
+    tbl.appendChild(sRow);
 }
 
-// 4. რულეტკის დახატვა და ანიმაცია (შეკვეცილი მუშა ვერსია)
-function initRou() {
-    const canvas = document.getElementById('rouCanvas');
-    if (!canvas) return;
-    rouCtx = canvas.getContext('2d');
-    const wrap = document.querySelector('.rou-left') || { clientWidth: 300 };
-    rouSZ = Math.min(wrap.clientWidth - 8, window.innerHeight * 0.4, 300);
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = rouSZ * dpr; canvas.height = rouSZ * dpr;
-    canvas.style.width = rouSZ + 'px'; canvas.style.height = rouSZ + 'px';
-    rouCtx.scale(dpr, dpr);
-}
-
-function rouLoop(ts) {
-    if (!rouLoopActive) return;
-    rouCtx.clearRect(0, 0, rouSZ, rouSZ);
-    
-    if (rouSpinning || ballVel > 0.005) {
-        rouAngle += rouVel; rouVel *= 0.998;
-        ballAngle -= ballVel; ballVel *= 0.992;
-        const R = rouSZ / 2 * 0.95;
-        ballR = R * 0.9 - (R * 0.2 * (1 - ballVel/0.25));
-        if (ballVel < 0.005 && rouSpinning) { 
-            rouSpinning = false; 
-            setTimeout(findResult, 200); 
-        }
-    }
-    
-    // მარტივი ბორბლის ხატვა (წრე)
-    const cx = rouSZ/2, cy = rouSZ/2;
-    rouCtx.beginPath(); rouCtx.arc(cx, cy, rouSZ/2-5, 0, Math.PI*2);
-    rouCtx.strokeStyle = '#d4a017'; rouCtx.lineWidth = 5; rouCtx.stroke();
-    
-    // ბურთის ხატვა
-    if (ballVel > 0.001 || rouSpinning) {
-        const bx = cx + Math.cos(ballAngle) * ballR;
-        const by = cy + Math.sin(ballAngle) * ballR;
-        rouCtx.beginPath(); rouCtx.arc(bx, by, 5, 0, Math.PI*2);
-        rouCtx.fillStyle = '#fff'; rouCtx.fill();
-    }
-    
-    requestAnimationFrame(rouLoop);
-}
-
-// 5. სხვა საჭირო დამხმარეები
 function placeBet(key) {
     if (rouSpinning) return;
     const u = getCur(); if(!u) return;
@@ -1650,10 +1712,17 @@ function placeBet(key) {
     refreshBetTable(); updateRouUI();
 }
 
+function selChip(v, el) {
+    curChip = v;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('sel'));
+    el.classList.add('sel');
+}
+
 function updateRouUI() {
     const tot = Object.values(rBets).reduce((a,b) => a + b, 0);
     const el = document.getElementById('rouTotalBet');
     if (el) el.textContent = fmtM(tot);
+    refreshBetTable();
 }
 
 function refreshBetTable() {
@@ -1670,9 +1739,18 @@ function refreshBetTable() {
 
 function showRouMsg(m, w) {
     const el = document.getElementById('rouWinMsg');
-    if (el) { el.textContent = m; el.style.color = w ? '#ff0' : '#ccc'; }
+    if (el) { el.textContent = m; el.style.color = w ? '#d4a017' : '#ccc'; }
 }
 
+function clearBets() {
+    if (rouSpinning) return;
+    const u = getCur();
+    let total = 0;
+    Object.values(rBets).forEach(v => total += v);
+    setBal(u, getBal(u) + total);
+    rBets = {};
+    updateRouUI();
+}
 /* =====================================================
    სისტემური სტარტი
 ===================================================== */
@@ -1741,19 +1819,7 @@ setInterval(()=>{
 })();
 
 </script>
-<script>
-  // თუ მთავარ სკრიპტში შეცდომაა, ეს მაინც იმუშავებს
-  function goRoulette() {
-      if (window.goRoulette && typeof window.goRoulette === 'function') {
-          window.goRoulette();
-      } else {
-          // თუ მთავარი ფუნქცია მაინც ვერ ჩაიტვირთა, ხელით გადავრთოთ
-          document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-          document.getElementById('sRou').classList.add('active');
-          alert("კოდში სინტაქსური შეცდომაა, რულეტკის ლოგიკა ვერ ჩაიტვირთა!");
-      }
-  }
-</script>
+
 </body>
 
 </html>
