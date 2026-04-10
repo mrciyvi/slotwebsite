@@ -1,35 +1,45 @@
 <!DOCTYPE html>
-
 <html lang="ka">
-
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>რუსთავ სლოტ — პრემიუმ ქართული კაზინო</title>
+
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
-<script>
-  const firebaseConfig = {
-        apiKey: "AIzaSyBEQnl0YOxLEchYsdDmbrqKGFvALSyvLfA",
-        authDomain: "slotmachine-a9ff4.firebaseapp.com",
-        databaseURL: "https://slotmachine-a9ff4-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "slotmachine-a9ff4",
-        storageBucket: "slotmachine-a9ff4.firebasestorage.app",
-        messagingSenderId: "1053857390923",
-        appId: "1:1053857390923:web:5d37a845dd4f370cc948ce",
-        measurementId: "G-QTBG5HQ5PM"
-      };
+  <script>
+    // გლობალური ცვლადი, რომ კოდმა ყოველთვის დაინახოს ბაზა
+    window.db = null;
 
-      firebase.initializeApp(firebaseConfig);
-      window.db = firebase.database();
-      console.log("✅ Firebase ახლა ნამდვილად მზად არის!");
-    } else {
-      console.error("❌ Firebase კვლავ ვერ ჩაიტვირთა. ვცდი ხელახლა 1 წამში...");
-      setTimeout(initFirebase, 1000);
+    function initFirebase() {
+      try {
+        const firebaseConfig = {
+          apiKey: "AIzaSyBEQnl0YOxLEchYsdDmbrqKGFvALSyvLfA",
+          authDomain: "slotmachine-a9ff4.firebaseapp.com",
+          databaseURL: "https://slotmachine-a9ff4-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "slotmachine-a9ff4",
+          storageBucket: "slotmachine-a9ff4.firebasestorage.app",
+          messagingSenderId: "1053857390923",
+          appId: "1:1053857390923:web:5d37a845dd4f370cc948ce",
+          measurementId: "G-QTBG5HQ5PM"
+        };
+
+        if (typeof firebase !== 'undefined') {
+          firebase.initializeApp(firebaseConfig);
+          window.db = firebase.database();
+          console.log("✅ Firebase მზად არის!");
+        } else {
+          console.error("❌ Firebase ბიბლიოთეკა ვერ ჩაიტვირთა.");
+        }
+      } catch (e) {
+        console.error("❌ ინიციალიზაციის შეცდომა:", e);
+      }
     }
-  }
 
-  initFirebase();
-</script>
-
+    // ვიძახებთ მაშინვე
+    initFirebase();
+  </script>
 <meta charset="UTF-8">
 
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
@@ -823,24 +833,28 @@ function setBal(u, v) {
 function updateLeaderboard() {
     const lbList = document.getElementById('leaderboardList');
     if (!lbList) return;
+    
+    // დამცავი: თუ ბაზა ჯერ არ არის, არაფერი ქნა
+    if (!window.db) {
+        console.warn("ბაზა ჯერ არ არის მზად...");
+        return;
+    }
 
-    // Firebase-დან ვიღებთ მოთამაშეებს ბალანსის მიხედვით
     db.ref('players').orderByChild('balance').limitToLast(5).on('value', (snapshot) => {
         let players = [];
         snapshot.forEach((child) => {
             players.push(child.val());
         });
 
-        // Firebase გვიბრუნებს ზრდადობით, ჩვენ გვინდა ყველაზე მდიდარი თავში
         players.reverse();
 
         lbList.innerHTML = players.map((p, index) => `
             <div class="hist-item" style="padding: 10px; border-bottom: 1px solid rgba(212,160,23,0.1); display: flex; justify-content: space-between; align-items: center;">
                 <span>
                     <strong style="color:var(--gold2)">#${index + 1}</strong> 
-                    <span style="margin-left:8px; color:#fff">${p.name}</span>
+                    <span style="margin-left:8px; color:#fff">${p.name || 'უცნობი'}</span>
                 </span>
-                <span style="color:var(--gold2); font-weight:bold;">${fmtM(p.balance)}</span>
+                <span style="color:var(--gold2); font-weight:bold;">${fmtM(p.balance || 0)}</span>
             </div>
         `).join('');
     });
