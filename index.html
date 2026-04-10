@@ -744,6 +744,7 @@ function updateSlotUI(){
 function chBet(d){if(sSpinning)return;sBetIdx=Math.max(0,Math.min(SBETS.length-1,sBetIdx+d));updateSlotUI()}
  
 //* =====================================================
+/* =====================================================
     ROULETTE ENGINE — რუსთავ სლოტი
 ===================================================== */
 const WHEEL=[0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26];
@@ -777,8 +778,6 @@ function buildBetTable(){
     }
     mainRow.appendChild(gridDiv);
     tbl.appendChild(mainRow);
-    
-    // გარე ფსონები (წითელი/შავი და ა.შ.)
     const eRow=document.createElement('div'); eRow.className='bt-row';
     [['red','წითელი'],['black','შავი'],['even','ლუწი'],['odd','კენტი']].forEach(([k,l])=>{
         const c=document.createElement('div'); c.className='bt-cell oc'; c.textContent=l; c.id='bc_'+k;
@@ -793,7 +792,7 @@ function placeBet(key){
     if(getBal(u)<curChip){ showRouMsg('არასაკმარისი ბალანსი',false); return; }
     setBal(u, getBal(u)-curChip);
     rBets[key]=(rBets[key]||0)+curChip;
-    if(typeof sndChip === 'function') sndChip();
+    if(window.sndChip) sndChip();
     refreshBetTable(); updateRouUI();
 }
 
@@ -801,18 +800,14 @@ function doRouSpin(){
     const u=getCur(); if(!u || rouSpinning) return;
     const total = Object.values(rBets).reduce((a,b)=>a+b,0);
     if(total <= 0){ showRouMsg('დადეთ ფსონი!', false); return; }
-
-    rouSpinning=true;
-    rouResult=null;
+    rouSpinning=true; rouResult=null;
     document.getElementById('rouNumEl').style.display='none';
     document.getElementById('rouSpinBtn').disabled=true;
-    showRouMsg('რუსთავ სლოტი ატრიალებს...', false);
-
+    showRouMsg('ბორბალი ბრუნავს...', false);
     rouVel=0.04 + Math.random()*0.02;
     ballVel=0.25 + Math.random()*0.1;
     ballAngle=Math.random()*Math.PI*2;
-    
-    if(typeof sndSpin === 'function') sndSpin();
+    if(window.sndSpin) sndSpin();
 }
 
 function findResult(){
@@ -822,8 +817,7 @@ function findResult(){
     const rel=(normalized-wheelNorm+Math.PI*2)%(Math.PI*2);
     let idx=Math.round(rel/segA)%N;
     rouResult=WHEEL[idx];
-    
-    if(typeof sndBall === 'function') sndBall();
+    if(window.sndBall) sndBall();
     showResult();
 }
 
@@ -835,25 +829,24 @@ function showResult(){
     el.textContent=num;
     el.className='rou-num '+(num===0?'grn-n':isRed?'red-n':'blk-n');
     el.style.display='inline-flex';
-
     let winAmt=0;
     Object.entries(rBets).forEach(([key,amt])=>{
         if(key==='n'+num) winAmt+=amt*36;
         else if(key==='red' && isRed) winAmt+=amt*2;
         else if(key==='black' && num!==0 && !isRed) winAmt+=amt*2;
         else if(key==='even' && num!==0 && num%2===0) winAmt+=amt*2;
-        else if(key==='odd' && num!==0 && num%2!==1) winAmt+=amt*2;
+        else if(key==='odd' && num!==0 && num%2!==0) winAmt+=amt*2;
     });
-
     if(winAmt>0){
         setBal(u, getBal(u)+winAmt);
         showRouMsg('მოგება: '+fmtM(winAmt), true);
-        if(typeof sndWin === 'function') sndWin();
+        if(window.sndWin) sndWin();
+        addHist({game:'რულეტკა №'+num, win:winAmt});
     } else {
         showRouMsg(num + ' - წაგება', false);
-        if(typeof sndLose === 'function') sndLose();
+        if(window.sndLose) sndLose();
+        addHist({game:'რულეტკა №'+num, win:-Object.values(rBets).reduce((a,b)=>a+b,0)});
     }
-
     prevBets={...rBets}; rBets={};
     refreshBetTable(); updateRouUI();
     rouSpinning=false;
@@ -864,7 +857,7 @@ function rouLoop(ts){
     if(!rouLoopActive) return;
     rouCtx.clearRect(0,0,rouSZ,rouSZ);
     if(rouSpinning || ballVel > 0.005){
-        rouAngle += rouVel; rouVel *= 0.999;
+        rouAngle += rouVel; rouVel *= 0.998;
         ballAngle -= ballVel; ballVel *= 0.992;
         const R=rouSZ/2*0.97;
         ballR = R*0.91 - (R*0.2 * (1 - ballVel/0.25));
@@ -875,11 +868,11 @@ function rouLoop(ts){
     requestAnimationFrame(rouLoop);
 }
 
-// სხვა დამხმარე ფუნქციები (updateRouUI, refreshBetTable და ა.შ.) უცვლელად რჩება
 function updateRouUI(){
     const tot = Object.values(rBets).reduce((a,b)=>a+b,0);
-    document.getElementById('rouTotalBet').textContent=fmtM(tot);
-    if(typeof refreshBal === 'function') refreshBal();
+    const el = document.getElementById('rouTotalBet');
+    if(el) el.textContent=fmtM(tot);
+    if(window.refreshBal) refreshBal();
 }
 
 function refreshBetTable(){
@@ -893,46 +886,48 @@ function refreshBetTable(){
     });
 }
 
+function showRouMsg(msg, isWin){
+    const el=document.getElementById('rouWinMsg');
+    if(el) { el.textContent=msg; el.style.color=isWin?'#ffd700':'#ccc'; }
+}
+
 function goRoulette(){
-    showScreen('sRou'); buildBetTable(); initRou();
+    getAC(); showScreen('sRou'); buildBetTable(); initRou();
     rouLoopActive=true; rouSpinning=false;
     requestAnimationFrame(rouLoop);
 }
 
-function showRouMsg(msg, isWin){
-    const el=document.getElementById('rouWinMsg');
-    if(el) { el.textContent=msg; el.style.color=isWin?'#ff0':'#ccc'; }
-}
-
-/* --- INIT --- */
-window.addEventListener('resize', ()=> { if(rouLoopActive) initRou(); });
-goSlot(); // ან სადაც იწყება თამაში
-
-
 /* =====================================================
-   INIT & GLOBAL
+    კრიტიკული ფუნქციები რეგისტრაციისთვის (INIT & GLOBAL)
 ===================================================== */
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'&&document.getElementById('sSlot').classList.contains('active')){
-    e.preventDefault();doSlotSpin();
+    e.preventDefault(); doSlotSpin();
   }
 });
-['lU','lP'].forEach(id=>{
-  document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
-});
-['rN','rU','rP'].forEach(id=>{
-  document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doReg()});
-});
-// Jackpot ticker
+
+// ეს ნაწილი აცოცხლებს ღილაკებს
+if(document.getElementById('lU')) {
+    ['lU','lP'].forEach(id=>{
+      document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+    });
+}
+if(document.getElementById('rN')) {
+    ['rN','rU','rP'].forEach(id=>{
+      document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doReg()});
+    });
+}
+
+// ჯეკპოტის განახლება
 setInterval(()=>{
-  const a=document.getElementById('jpLobby');if(a)a.textContent=fmtM(getJack());
-  const b=document.getElementById('grandJp');if(b)b.textContent=fmtM(getJack());
+  const a=document.getElementById('jpLobby'); if(a) a.textContent=fmtM(getJack());
+  const b=document.getElementById('grandJp'); if(b) b.textContent=fmtM(getJack());
 },3000);
- 
-// Init
+
+// საწყისი ჩატვირთვა
 (function(){
   const u=getCur();
-  if(u)goLobby();
+  if(u) goLobby();
   else showScreen('sAuth');
 })();
 </script>
