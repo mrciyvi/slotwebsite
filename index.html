@@ -980,7 +980,33 @@ function goLobby(){
   updateLeaderboard(); // რეიტინგის განახლება
   initChat();          // ჩათის ჩართვა
 }
+// ჩათის ჭკვიანი გასუფთავება (შლის 2 წუთზე ძველ მესიჯებს)
+function autoClearChat() {
+    if (!window.db) return;
 
+    const chatRef = window.db.ref('chat');
+    const now = Date.now();
+    const twoMinutesAgo = now - (2 * 60 * 1000); // 2 წუთი მილიწამებში
+
+    // ვეძებთ მესიჯებს, რომელთა დროც ნაკლებია (უფრო ძველია) ვიდრე 2 წუთის წინანდელი დრო
+    chatRef.orderByChild('time').endAt(twoMinutesAgo).once('value', (snapshot) => {
+        const updates = {};
+        snapshot.forEach((child) => {
+            // ვამზადებთ წასაშლელ სიაში
+            updates[child.key] = null;
+        });
+
+        // ერთიანად ვშლით ყველა ძველ მესიჯს
+        chatRef.update(updates).then(() => {
+            if (Object.keys(updates).length > 0) {
+                console.log("🧹 ძველი მესიჯები წაიშალა.");
+            }
+        });
+    });
+}
+
+// ვრთავთ ტაიმერს, რომელიც ყოველ 2 წუთში შეამოწმებს ბაზას
+setInterval(autoClearChat, 120000);
 function addBalance(amt){
 
   const u=getCur();if(!u)return;
