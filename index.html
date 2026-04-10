@@ -631,15 +631,21 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 
     <div class="hist-title" style="color:var(--gold2)">💬 გლობალური ჩათი</div>
     <div id="chatBox" style="background: var(--panelb); border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; height: 250px; margin-top: 10px;">
-        <div id="chatMessages" style="flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; color: #eee;">
-            <div style="color:var(--muted); text-align:center">ჩათი ცარიელია...</div>
-        </div>
+        <div id="chatMessages" style="flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; color: #eee;"></div>
         <div style="padding: 8px; border-top: 1px solid var(--border); display: flex; gap: 5px;">
             <input id="chatInput" placeholder="დაწერე რამე..." style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 6px 10px; outline: none;">
-            <button onclick="sendChatMessage()" style="background: var(--gold); border: none; border-radius: 6px; padding: 0 15px; cursor: pointer; color: #000; font-weight: bold;">></button>
+            <button type="button" onclick="sendChatMessage()" style="background: var(--gold); border: none; border-radius: 6px; padding: 0 15px; cursor: pointer; color: #000; font-weight: bold;">></button>
         </div>
     </div>
- 
+  </div> </div> ```
+
+### 2. რატომ აგდებს `isWild` ერორს?
+თუ HTML-ის გასწორების შემდეგაც ამოაგდო ეგ შეცდომა, დაამატე ეს "დამცავი" ხაზი შენს JavaScript-ში, სადაც `drawSym` ფუნქცია გაქვს (დაახლოებით 1240-ე ხაზზე):
+
+```javascript
+function drawSym(s, x, y, w, h) {
+    if (!s) return; // თუ სიმბოლო არ არსებობს, არაფერი ქნა
+    // ... დანარჩენი კოდი რაც გიწერია
 
 <!-- SLOT -->
 
@@ -1642,31 +1648,18 @@ let rBets = {};
 const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
 const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 
-// მთავარი ფუნქცია - ამას იძახებს HTML ღილაკი
 function goRoulette() {
-    console.log("რულეტკა გააქტიურდა");
-    if (typeof getAC === 'function') getAC();
-    
     showScreen('sRou');
     updateHeader(true, true);
     
-    buildBetTable();
-    initRou();
+    // დაამატე ეს ხაზები:
+    const canvas = document.getElementById('rouCanvas');
+    const container = canvas.parentElement;
+    const size = Math.min(container.clientWidth - 40, 400); 
+    canvas.width = size;
+    canvas.height = size;
     
-    rBets = {};
-    rouResult = null;
-    rouSpinning = false;
-    rouAngle = 0;
-    rouVel = 0;
-    ballVel = 0;
     rouLoopActive = true;
-    
-    updateRouUI();
-    showRouMsg('განათავსეთ ფსონი', false);
-    
-    const numEl = document.getElementById('rouNumEl');
-    if (numEl) numEl.style.display = 'none';
-    
     requestAnimationFrame(rouLoop);
 }
 
