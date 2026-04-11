@@ -4,7 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
   <title>რუსთავ სლოტ — პრემიუმ ქართული კაზინო</title>
-
+  
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
@@ -930,32 +933,46 @@ function switchTab(tab,el){
 
 }
 
-function doLogin(){
+// --- შესვლა ---
+function doLogin() {
+  const u = document.getElementById('lU').value.trim() + "@casino.com";
+  const p = document.getElementById('lP').value;
 
-  const u=document.getElementById('lU').value.trim(),p=document.getElementById('lP').value;
-
-  const users=getUsers();
-
-  if(!users[u]||users[u].pw!==p){document.getElementById('lMsg').textContent='არასწორი მომხმარებელი ან პაროლი';playTone(160,.18,'sawtooth',.04);return}
-
-  setCur(u);goLobby();
-
+  firebase.auth().signInWithEmailAndPassword(u, p)
+    .then(() => {
+      goLobby();
+    })
+    .catch((error) => {
+      document.getElementById('lMsg').textContent = "არასწორი მონაცემები";
+    });
 }
 
-function doReg(){
+// --- რეგისტრაცია ---
+function doReg() {
+  const n = document.getElementById('rN').value.trim();
+  const u = document.getElementById('rU').value.trim() + "@casino.com"; // ვქმნით ვირტუალურ იმეილს
+  const p = document.getElementById('rP').value;
 
-  const n=document.getElementById('rN').value.trim(),u=document.getElementById('rU').value.trim(),p=document.getElementById('rP').value;
+  if (!n || !u || p.length < 6) {
+    document.getElementById('rMsg').textContent = 'პაროლი უნდა იყოს მინ. 6 სიმბოლო';
+    return;
+  }
 
-  if(!n||!u||!p){document.getElementById('rMsg').textContent='შეავსე ყველა ველი';return}
-
-  const users=getUsers();
-
-  if(users[u]){document.getElementById('rMsg').textContent='მომხმარებელი უკვე არსებობს';return}
-
-  users[u]={name:n,pw:p};sv(SK.U,users);setBal(u,500);setCur(u);goLobby();
-
+  firebase.auth().createUserWithEmailAndPassword(u, p)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      // ვინახავთ დამატებით ინფორმაციას ბაზაში UID-ის მიხედვით
+      db.ref('players/' + user.uid).set({
+        name: n,
+        balance: 500,
+        createdAt: Date.now()
+      });
+      goLobby();
+    })
+    .catch((error) => {
+      document.getElementById('rMsg').textContent = "შეცდომა: " + error.message;
+    });
 }
-
 function doLogout(){setCur(null);slotLoopActive=false;rouLoopActive=false;showScreen('sAuth');updateHeader(false,false)}
 
  
