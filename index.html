@@ -152,6 +152,13 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
  
 
+#newTableModal.show {
+  display: flex !important;
+  animation: fIn .3s ease;
+}
+
+ 
+
 /* HEADER */
 
 header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
@@ -647,6 +654,22 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 
       </div>
 
+      <div class="game-card" onclick="goPokerLobby()">
+
+        <div class="game-thumb" style="font-size:52px">♠️</div>
+
+        <div class="game-info">
+
+          <div class="game-badge" style="background:rgba(220,53,69,.12);color:#dc3545">მრავლობითი</div>
+
+          <div class="game-name">Texas Hold'em Poker</div>
+
+          <div class="game-desc">რეალური მოთამაშეები, ქვეშ მაგიდები, სტრატეგიული თამაში.</div>
+
+        </div>
+
+      </div>
+
     </div>
 
     <div class="lobby-btns">
@@ -814,7 +837,117 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 
 </div>
 
- 
+<!-- POKER LOBBY -->
+<div class="screen" id="sPokerLobby">
+  <div style="padding: 16px; max-width: 1200px; margin: 0 auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+      <h2 style="font-family: 'Cinzel Decorative', serif; font-size: 24px; color: var(--gold2); margin: 0;">Texas Hold'em ♠️</h2>
+      <button class="hbtn" onclick="showScreen('sLobby')">← უკან</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 20px;">
+      <div id="pokerTablesContainer"></div>
+      <div onclick="showNewTableModal()" style="background: linear-gradient(135deg, rgba(212,160,23,.2), rgba(212,160,23,.05)); border: 2px dashed var(--gold); border-radius: 12px; padding: 24px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 200px; transition: all .2s;">
+        <div style="font-size: 48px; margin-bottom: 12px;">➕</div>
+        <div style="font-size: 14px; font-weight: 700; color: var(--gold2);">შექმენი ახალი მაგიდა</div>
+        <div style="font-size: 11px; color: var(--muted); margin-top: 8px;">დააფიქსირო თამაშის წესები</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- POKER TABLE -->
+<div class="screen" id="sPokerTable">
+  <div style="padding: 12px; height: calc(100vh - 57px); display: flex; flex-direction: column; background: radial-gradient(ellipse at center, #0a0600, #050300);">
+    
+    <!-- TOP INFO BAR -->
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(0,0,0,.4); border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px;">
+      <div style="font-size: 13px; color: var(--muted);">
+        <span style="color: var(--gold2);">პოტი:</span> <span id="pkPot" style="font-weight: 700; color: var(--gold2);">₾0</span>
+      </div>
+      <div id="pkTableInfo" style="font-size: 12px; color: var(--text);">მოთამაშეები: 0/6</div>
+      <button class="hbtn" onclick="leavePokerTable()" style="padding: 6px 14px;">გასვლა</button>
+    </div>
+
+    <!-- MAIN TABLE -->
+    <div style="flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; margin-bottom: 12px;">
+      <canvas id="pokerCanvas" style="max-width: 100%; max-height: 100%;" width="900" height="500"></canvas>
+    </div>
+
+    <!-- COMMUNITY CARDS -->
+    <div style="text-align: center; margin-bottom: 12px;">
+      <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px;">კოიმეტური კარტები</div>
+      <div id="pkCommunityCards" style="display: flex; justify-content: center; gap: 8px; min-height: 80px;"></div>
+    </div>
+
+    <!-- PLAYER HAND & ACTIONS -->
+    <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center;">
+      <!-- HAND -->
+      <div style="text-align: center;">
+        <div style="font-size: 11px; color: var(--muted); margin-bottom: 6px;">თქვენი კარტები</div>
+        <div id="pkPlayerHand" style="display: flex; justify-content: center; gap: 8px; min-height: 80px;"></div>
+      </div>
+
+      <!-- ACTION PANEL -->
+      <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px; background: rgba(0,0,0,.5); border-radius: 8px; border: 1px solid var(--border); min-width: 200px;">
+        <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">
+          <div>ბალანსი: <span style="color: var(--gold2);" id="pkBalance">₾0</span></div>
+          <div>ფსონი: <span style="color: var(--gold2);" id="pkBetAmount">₾0</span></div>
+        </div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          <button class="rbtn" id="pkFoldBtn" onclick="pokerFold()" style="flex: 1; min-width: 60px;">ფოლდი</button>
+          <button class="rbtn" id="pkCheckBtn" onclick="pokerCheck()" style="flex: 1; min-width: 60px;">ჩეკი</button>
+          <button class="rbtn rg" id="pkCallBtn" onclick="pokerCall()" style="flex: 1; min-width: 60px;">ზარი</button>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <input id="pkBetInput" type="number" placeholder="₾" min="0" max="10000" style="flex: 1; background: rgba(0,0,0,.3); border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 6px 8px; outline: none;">
+          <button class="rbtn rg" id="pkRaiseBtn" onclick="pokerRaise()" style="flex: 1;">ქვე</button>
+        </div>
+        <div id="pkStatus" style="font-size: 12px; color: var(--gold2); text-align: center; margin-top: 6px; min-height: 18px;"></div>
+      </div>
+
+      <!-- PLAYERS -->
+      <div id="pkPlayersPanel" style="display: flex; flex-direction: column; gap: 8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- NEW TABLE MODAL -->
+<div id="newTableModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,.8); z-index: 1000; align-items: center; justify-content: center;">
+  <div style="background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 90%; max-width: 400px; box-shadow: 0 20px 80px rgba(0,0,0,.8);">
+    <h3 style="font-family: 'Cinzel', serif; font-size: 18px; color: var(--gold2); margin: 0 0 16px 0;">ახალი მაგიდის შექმნა</h3>
+    
+    <div class="field">
+      <label>მაგიდის სახელი</label>
+      <input id="newTableName" type="text" placeholder="მაგიდის სახელი..." value="High Stakes">
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+      <div class="field">
+        <label>Blind წინა (₾)</label>
+        <input id="newTableSmallBlind" type="number" value="1" min="0.5" step="0.5">
+      </div>
+      <div class="field">
+        <label>Blind დიდი (₾)</label>
+        <input id="newTableBigBlind" type="number" value="2" min="1" step="1">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>მაქსიმალური მოთამაშეები</label>
+      <select id="newTableMaxPlayers" style="background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 11px 14px; color: var(--text); font-family: 'Noto Sans Georgian',sans-serif; outline: none;">
+        <option value="2">2</option>
+        <option value="4">4</option>
+        <option value="6" selected>6</option>
+      </select>
+    </div>
+
+    <div style="display: flex; gap: 10px;">
+      <button class="abtn" onclick="createNewTable()" style="flex: 1; margin-top: 0;">✓ შექმნა</button>
+      <button class="abtn" onclick="document.getElementById('newTableModal').style.display='none'" style="flex: 1; margin-top: 0; background: rgba(255,255,255,.04); color: var(--text);">✕ გაუქმება</button>
+    </div>
+  </div>
+</div>
 
 <script>
 
@@ -856,28 +989,77 @@ const addHist = (item) => {
     if (window.gameState.history.length > 60) window.gameState.history.pop();
 };
 
-function setBal(u, v) {
-    const user = firebase.auth().currentUser;
-    if (!user) {
-        console.warn("მომხმარებელი არ არის ავტორიზირებული!");
-        return;
+// ========== SECURE BALANCE FUNCTIONS (Server-side) ==========
+async function debitBalance(amount, reason) {
+    const debitBalance = firebase.functions().httpsCallable('debitBalance');
+    try {
+        const result = await debitBalance({ amount, reason });
+        window.currentUserData.balance = result.data.newBalance;
+        refreshBal();
+        return result.data;
+    } catch (error) {
+        console.error('დებიტის შეცდომა:', error.message);
+        showWinBar('❌ ' + error.message);
+        return null;
     }
+}
 
+async function creditBalance(amount, reason) {
+    const creditBalance = firebase.functions().httpsCallable('creditBalance');
+    try {
+        const result = await creditBalance({ amount, reason });
+        window.currentUserData.balance = result.data.newBalance;
+        refreshBal();
+        return result.data;
+    } catch (error) {
+        console.error('კრედიტის შეცდომა:', error.message);
+        return null;
+    }
+}
+
+async function processGameTransaction(bet, win, game) {
+    const processGameTx = firebase.functions().httpsCallable('processGameTransaction');
+    try {
+        const result = await processGameTx({ bet, win, game });
+        window.currentUserData.balance = result.data.newBalance;
+        refreshBal();
+        return result.data;
+    } catch (error) {
+        console.error('თამაშის ტრანზაქციის შეცდომა:', error.message);
+        return null;
+    }
+}
+
+async function pokerTransaction(tableId, amount, type) {
+    const pokerTx = firebase.functions().httpsCallable('pokerTransaction');
+    try {
+        const result = await pokerTx({ tableId, amount, type });
+        window.currentUserData.balance = result.data.newBalance;
+        refreshBal();
+        return result.data;
+    } catch (error) {
+        console.error('პოკერ ტრანზაქციის შეცდომა:', error.message);
+        return null;
+    }
+}
+
+async function getBalance() {
+    const getBalanceFn = firebase.functions().httpsCallable('getBalance');
+    try {
+        const result = await getBalanceFn({});
+        return result.data.balance;
+    } catch (error) {
+        console.error('ბალანსის მიღების შეცდომა:', error.message);
+        return 0;
+    }
+}
+
+function setBal(u, v) {
+    // ეს ფუნქცია DELETE-ილი იყო, ახლა გამოიყენება მხოლოდ UI-სთვის
     const balance = Math.round(v * 100) / 100;
     window.currentUserData = window.currentUserData || {};
     window.currentUserData.balance = balance;
-
-    const el = document.getElementById('balVal');
-    if (el) el.textContent = fmtM(balance);
-    const sb = document.getElementById('sBal');
-    if (sb) sb.textContent = fmtM(balance);
-
-    db.ref('players/' + user.uid).update({
-        balance: balance,
-        lastUpdate: Date.now()
-    }).catch((error) => {
-        console.error("სინქრონიზაციის შეცდომა:", error);
-    });
+    refreshBal();
 }
 
 function updateLeaderboard() {
@@ -1496,26 +1678,28 @@ function doSlotSpin(){
 
   if(getBal(u)<bet){showWinBar('არასაკმარისი ბალანსი!');sndLose();return}
 
-  setBal(u,getBal(u)-bet);
+  // დებიტი ფსონი Cloud Function-ის საშუალებით
+  debitBalance(bet, 'slot_bet').then(result => {
+    if (!result) return;
 
-  setJack(getJack()+bet*.015);
+    setJack(getJack()+bet*.015);
 
-  sSpinning=true;sWinLines=[];sLastWin=0;
+    sSpinning=true;sWinLines=[];sLastWin=0;
 
-  document.getElementById('spinBtn').disabled=true;
+    document.getElementById('spinBtn').disabled=true;
 
-  document.getElementById('winBar').textContent='';
+    document.getElementById('winBar').textContent='';
 
-  document.getElementById('winBar').classList.remove('on');
+    document.getElementById('winBar').classList.remove('on');
 
-  document.getElementById('sWin').textContent='₾0.00';
+    document.getElementById('sWin').textContent='₾0.00';
 
-  updateSlotUI();sndSpin();
+    updateSlotUI();sndSpin();
 
-  const now=performance.now();
+    const now=performance.now();
 
-  sReels.forEach((r,i)=>{r.phase='spin';r.vel=5;r.stopTime=now+500+i*240});
-
+    sReels.forEach((r,i)=>{r.phase='spin';r.vel=5;r.stopTime=now+500+i*240});
+  });
 }
 
  
@@ -1573,18 +1757,24 @@ function evalSlot() {
 
   if (totalWin > 0) {
     sLastWin = totalWin;
-    setBal(u, getBal(u) + totalWin);
-    sWinLines = wonLines;
-    showWinBar('🏆 გამარჯვება! +' + fmtM(totalWin));
-    document.getElementById('sWin').textContent = fmtM(totalWin);
-    if (totalWin >= bet * 15) {
-      showMega('დიდი მოგება! 💰', totalWin);
-      spawnCoins(innerWidth / 2, 300, 70);
-    } else {
-      sndWin();
-      spawnCoins(innerWidth / 2, 300, 28);
-    }
-    addHist({ game: 'სლოტი', win: totalWin });
+    
+    // Cloud Function ტრანზაქცია
+    processGameTransaction(bet, totalWin, 'slot').then(result => {
+      if (!result) return;
+      
+      sWinLines = wonLines;
+      showWinBar('🏆 გამარჯვება! +' + fmtM(totalWin));
+      document.getElementById('sWin').textContent = fmtM(totalWin);
+      
+      if (totalWin >= bet * 15) {
+        showMega('დიდი მოგება! 💰', totalWin);
+        spawnCoins(innerWidth / 2, 300, 70);
+      } else {
+        sndWin();
+        spawnCoins(innerWidth / 2, 300, 28);
+      }
+      addHist({ game: 'სლოტი', win: totalWin });
+    });
   } else {
     sWinLines = [];
     showWinBar('');
@@ -1815,16 +2005,19 @@ function checkRouWin(res) {
 
     if (win > 0) {
         const u = getCur();
-        setBal(u, getBal(u) + win);
-        showRouMsg('მოგება: ' + fmtM(win), true);
-        if (window.sndWin) sndWin();
-        if (win >= 100) showMega('დიდი მოგება!', win);
+        creditBalance(win, 'roulette_win').then(result => {
+          if (!result) return;
+          showRouMsg('მოგება: ' + fmtM(win), true);
+          if (window.sndWin) sndWin();
+          if (win >= 100) showMega('დიდი მოგება!', win);
+          document.getElementById('rouLastWin').textContent = fmtM(win);
+        });
     } else {
         showRouMsg('სცადეთ თავიდან', false);
         if (window.sndLose) sndLose();
+        document.getElementById('rouLastWin').textContent = '₾0.00';
     }
     
-    document.getElementById('rouLastWin').textContent = fmtM(win);
     rBets = {};
     setTimeout(updateRouUI, 1500);
 }
@@ -1879,10 +2072,13 @@ function placeBet(key) {
     if (rouSpinning) return;
     const u = getCur(); if(!u) return;
     if (getBal(u) < curChip) { showRouMsg('არასაკმარისი ბალანსი', false); return; }
-    setBal(u, getBal(u) - curChip);
-    rBets[key] = (rBets[key] || 0) + curChip;
-    if (window.sndChip) sndChip();
-    refreshBetTable(); updateRouUI();
+    
+    debitBalance(curChip, 'roulette_bet').then(result => {
+      if (!result) return;
+      rBets[key] = (rBets[key] || 0) + curChip;
+      if (window.sndChip) sndChip();
+      refreshBetTable(); updateRouUI();
+    });
 }
 
 function selChip(v, el) {
@@ -1920,10 +2116,370 @@ function clearBets() {
     const u = getCur();
     let total = 0;
     Object.values(rBets).forEach(v => total += v);
-    setBal(u, getBal(u) + total);
-    rBets = {};
-    updateRouUI();
+    
+    if (total > 0) {
+      creditBalance(total, 'roulette_clear').then(result => {
+        if (!result) return;
+        rBets = {};
+        updateRouUI();
+      });
+    }
 }
+
+/* =====================================================
+   POKER - TEXAS HOLD'EM
+===================================================== */
+
+// Poker table management
+let currentPokerTable = null;
+let currentPlayerHand = [];
+let currentCommunityCards = [];
+let pokerGameState = {};
+let pokerPlayers = {};
+let pokerCurrentBet = 0;
+let pokerBetAmount = 0;
+
+// Card ranks and suits
+const SUITS = ['♠', '♥', '♦', '♣'];
+const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+const RANK_VALUES = {
+  '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10,
+  'J': 11, 'Q': 12, 'K': 13, 'A': 14
+};
+
+function goPokerLobby() {
+  showScreen('sPokerLobby');
+  updateHeader(false, true);
+  loadPokerTables();
+}
+
+function loadPokerTables() {
+  if (!window.db) {
+    setTimeout(loadPokerTables, 1000);
+    return;
+  }
+
+  db.ref('poker/tables').on('value', (snapshot) => {
+    const tables = snapshot.val() || {};
+    const container = document.getElementById('pokerTablesContainer');
+    
+    if (Object.keys(tables).length === 0) {
+      container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 20px; color: var(--muted);">ახლა მაგიდებ ცუდია</div>';
+      return;
+    }
+
+    container.innerHTML = Object.entries(tables).map(([tableId, table]) => {
+      const playerCount = Object.keys(table.players || {}).length;
+      return `
+        <div onclick="joinPokerTable('${tableId}')" style="background: var(--panelb); border: 1px solid var(--border); border-radius: 12px; padding: 14px; cursor: pointer; transition: all .2s;">
+          <div style="font-weight: 700; color: var(--gold2); margin-bottom: 8px;">${table.name || 'Poker Table'}</div>
+          <div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">
+            <div>Blinds: ₾${table.smallBlind} / ₾${table.bigBlind}</div>
+            <div>მოთამაშეები: ${playerCount}/${table.maxPlayers}</div>
+            <div>პოტი: <span style="color: var(--gold2);">₾${(table.pot || 0).toFixed(2)}</span></div>
+          </div>
+          <button class="rbtn rg" style="width: 100%; margin-top: 8px;">მონაწილეობა</button>
+        </div>
+      `;
+    }).join('');
+  });
+}
+
+function showNewTableModal() {
+  document.getElementById('newTableModal').style.display = 'flex';
+}
+
+function createNewTable() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+
+  const name = document.getElementById('newTableName').value;
+  const smallBlind = parseFloat(document.getElementById('newTableSmallBlind').value);
+  const bigBlind = parseFloat(document.getElementById('newTableBigBlind').value);
+  const maxPlayers = parseInt(document.getElementById('newTableMaxPlayers').value);
+
+  const tableId = 'table_' + Date.now();
+  
+  db.ref('poker/tables/' + tableId).set({
+    id: tableId,
+    name: name,
+    creator: user.uid,
+    createdAt: Date.now(),
+    smallBlind: smallBlind,
+    bigBlind: bigBlind,
+    maxPlayers: maxPlayers,
+    players: {},
+    pot: 0,
+    status: 'waiting',
+    dealer: null,
+    community: [],
+    deck: []
+  }).then(() => {
+    document.getElementById('newTableModal').style.display = 'none';
+    // Reset form
+    document.getElementById('newTableName').value = 'High Stakes';
+    document.getElementById('newTableSmallBlind').value = '1';
+    document.getElementById('newTableBigBlind').value = '2';
+    document.getElementById('newTableMaxPlayers').value = '6';
+    joinPokerTable(tableId);
+  }).catch(err => console.error("Table creation error:", err));
+}
+
+function joinPokerTable(tableId) {
+  const user = firebase.auth().currentUser;
+  if (!user || !window.currentUserData) return;
+
+  currentPokerTable = tableId;
+
+  db.ref('poker/tables/' + tableId + '/players/' + user.uid).set({
+    uid: user.uid,
+    name: window.currentUserData.name,
+    balance: window.currentUserData.balance,
+    hand: [],
+    bet: 0,
+    folded: false,
+    action: false,
+    joinedAt: Date.now()
+  });
+
+  db.ref('poker/tables/' + tableId).on('value', (snapshot) => {
+    const table = snapshot.val();
+    if (table) {
+      pokerGameState = table;
+      pokerPlayers = table.players || {};
+      updatePokerUI();
+
+      if (table.status === 'playing') {
+        initPokerCanvas();
+      }
+    }
+  });
+
+  showScreen('sPokerTable');
+  updateHeader(true, true);
+  initPokerCanvas();
+}
+
+function initPokerCanvas() {
+  const canvas = document.getElementById('pokerCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  drawPokerTable(ctx, canvas);
+}
+
+function drawPokerTable(ctx, canvas) {
+  const w = canvas.width;
+  const h = canvas.height;
+
+  // Draw oval table
+  ctx.fillStyle = '#0a6b3c';
+  ctx.beginPath();
+  ctx.ellipse(w / 2, h / 2, w / 2.2, h / 2.4, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Table border
+  ctx.strokeStyle = 'rgba(212,160,23,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(w / 2, h / 2, w / 2.2, h / 2.4, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Draw dealer badge if needed
+  if (pokerGameState.dealer && Object.keys(pokerPlayers).length > 0) {
+    const dealerIdx = Object.keys(pokerPlayers).indexOf(pokerGameState.dealer);
+    const totalPlayers = Object.keys(pokerPlayers).length;
+    const dealerAngle = (dealerIdx / totalPlayers) * Math.PI * 2 - Math.PI / 2;
+    const dx = w / 2 + Math.cos(dealerAngle) * (w / 2.5);
+    const dy = h / 2 + Math.sin(dealerAngle) * (h / 2.6);
+    
+    ctx.fillStyle = 'rgba(212,160,23,0.3)';
+    ctx.beginPath();
+    ctx.arc(dx, dy, 15, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'var(--gold2)';
+    ctx.font = 'bold 12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('D', dx, dy);
+  }
+}
+
+function updatePokerUI() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+
+  // Update pot
+  document.getElementById('pkPot').textContent = '₾' + (pokerGameState.pot || 0).toFixed(2);
+
+  // Update player count
+  const playerCount = Object.keys(pokerPlayers).length;
+  const maxPlayers = pokerGameState.maxPlayers || 6;
+  document.getElementById('pkTableInfo').textContent = `მოთამაშეები: ${playerCount}/${maxPlayers}`;
+
+  // Update player balance
+  const currentPlayer = pokerPlayers[user.uid];
+  if (currentPlayer) {
+    document.getElementById('pkBalance').textContent = '₾' + currentPlayer.balance.toFixed(2);
+    document.getElementById('pkBetAmount').textContent = '₾' + (currentPlayer.bet || 0).toFixed(2);
+  }
+
+  // Draw community cards
+  renderCards('pkCommunityCards', pokerGameState.community || [], true);
+
+  // Draw player hand
+  if (currentPlayer && currentPlayer.hand) {
+    renderCards('pkPlayerHand', currentPlayer.hand, false);
+  }
+
+  // Update action panel
+  updatePokerActionPanel();
+  initPokerCanvas();
+}
+
+function renderCards(elementId, cards, isCommunity) {
+  const container = document.getElementById(elementId);
+  if (!container) return;
+
+  if (!Array.isArray(cards) || cards.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = cards.map(card => {
+    if (!card || !card.suit || !card.rank) return '';
+    const suitColor = (card.suit === '♥' || card.suit === '♦') ? 'var(--red)' : '#fff';
+    
+    return `
+      <div style="
+        width: 60px;
+        height: 90px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.3));
+        border: 2px solid var(--border);
+        border-radius: 6px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: ${suitColor};
+        position: relative;
+        font-size: 12px;
+      ">
+        <div>${card.rank}</div>
+        <div style="font-size: 18px;">${card.suit}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function updatePokerActionPanel() {
+  const user = firebase.auth().currentUser;
+  if (!user) return;
+
+  const currentPlayer = pokerPlayers[user.uid];
+  const status = document.getElementById('pkStatus');
+
+  if (!currentPlayer) {
+    status.textContent = 'დგამდე მაგიდას';
+    return;
+  }
+
+  if (currentPlayer.folded) {
+    status.textContent = 'თქვენ დაკეცეთ';
+    document.getElementById('pkFoldBtn').disabled = true;
+  } else if (currentPlayer.action) {
+    status.textContent = 'თქვენი ხელი';
+    document.getElementById('pkFoldBtn').disabled = false;
+  } else {
+    status.textContent = 'გრძელი...';
+    document.getElementById('pkFoldBtn').disabled = true;
+  }
+}
+
+function pokerFold() {
+  const user = firebase.auth().currentUser;
+  if (!user || !currentPokerTable) return;
+
+  db.ref('poker/tables/' + currentPokerTable + '/players/' + user.uid).update({
+    folded: true,
+    action: false
+  });
+}
+
+function pokerCheck() {
+  const user = firebase.auth().currentUser;
+  if (!user || !currentPokerTable) return;
+
+  db.ref('poker/tables/' + currentPokerTable + '/players/' + user.uid).update({
+    action: false
+  });
+}
+
+function pokerCall() {
+  const user = firebase.auth().currentUser;
+  if (!user || !currentPokerTable) return;
+
+  const currentPlayer = pokerPlayers[user.uid];
+  if (!currentPlayer) return;
+
+  const currentBet = pokerGameState.currentBet || 0;
+  const playerBet = currentPlayer.bet || 0;
+  const needToBet = Math.max(0, currentBet - playerBet);
+
+  if (needToBet > 0) {
+    debitBalance(needToBet, `poker_call_${currentPokerTable}`).then(result => {
+      if (!result) return;
+      
+      db.ref('poker/tables/' + currentPokerTable + '/players/' + user.uid).update({
+        bet: playerBet + needToBet,
+        action: false
+      });
+
+      db.ref('poker/tables/' + currentPokerTable).update({
+        pot: (pokerGameState.pot || 0) + needToBet
+      });
+    });
+  }
+}
+
+function pokerRaise() {
+  const user = firebase.auth().currentUser;
+  if (!user || !currentPokerTable) return;
+
+  const betAmount = parseFloat(document.getElementById('pkBetInput').value);
+  if (isNaN(betAmount) || betAmount <= 0) return;
+
+  const currentPlayer = pokerPlayers[user.uid];
+  if (!currentPlayer) return;
+
+  debitBalance(betAmount, `poker_raise_${currentPokerTable}`).then(result => {
+    if (!result) return;
+    
+    db.ref('poker/tables/' + currentPokerTable + '/players/' + user.uid).update({
+      bet: (currentPlayer.bet || 0) + betAmount,
+      action: false
+    });
+
+    db.ref('poker/tables/' + currentPokerTable).update({
+      pot: (pokerGameState.pot || 0) + betAmount,
+      currentBet: (pokerGameState.currentBet || 0) + betAmount
+    });
+
+    document.getElementById('pkBetInput').value = '';
+  });
+}
+
+function leavePokerTable() {
+  const user = firebase.auth().currentUser;
+  if (!user || !currentPokerTable) return;
+
+  db.ref('poker/tables/' + currentPokerTable + '/players/' + user.uid).remove();
+  currentPokerTable = null;
+
+  showScreen('sPokerLobby');
+}
+
 /* =====================================================
    სისტემური სტარტი
 ===================================================== */
