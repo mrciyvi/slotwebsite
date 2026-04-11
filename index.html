@@ -1947,17 +1947,14 @@ function sendChatMessage() {
     const input = document.getElementById('chatInput');
     const msg = input.value.trim();
     const u = getCur();
-    
     if (!msg || !u || !window.db) return;
 
     const userData = getUsers()[u];
-    
     window.db.ref('chat').push({
         name: userData.name || u,
         text: msg,
-        time: Date.now()
+        time: Date.now() // ინახავს გაგზავნის ზუსტ დროს
     });
-
     input.value = '';
 }
 
@@ -1965,12 +1962,14 @@ function initChat() {
     if (!window.db || window.chatInitialized) return;
     window.chatInitialized = true; // რომ ბევრჯერ არ ჩაირთოს
 
+    // მესიჯების მოსმენა და გამოჩენა
     window.db.ref('chat').limitToLast(30).on('value', (snapshot) => {
         const chatEl = document.getElementById('chatMessages');
         if (!chatEl) return;
         
         let html = '';
-        const currentUserName = getUsers()[getCur()]?.name;
+        const user = getCur();
+        const currentUserName = user ? getUsers()[user]?.name : null;
 
         snapshot.forEach((child) => {
             const m = child.val();
@@ -1986,9 +1985,28 @@ function initChat() {
         chatEl.scrollTop = chatEl.scrollHeight;
     });
 
-    document.getElementById('chatInput').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') sendChatMessage();
-    });
+    // --- ავტომატური წაშლა (2 წუთიანი ინტერვალით) ---
+    setInterval(() => {
+        if (window.db) {
+            const twoMinutesAgo = Date.now() - (2 * 60 * 1000); 
+            const chatRef = window.db.ref('chat');
+            
+            // ვპოულობთ მესიჯებს, რომელთა 'time' უფრო ნაკლებია ვიდრე 2 წუთის წინანდელი დრო
+            chatRef.orderByChild('time').endAt(twoMinutesAgo).once('value', (snapshot) => {
+                snapshot.forEach((child) => {
+                    child.ref.remove(); // ვშლით ძველ მესიჯს
+                });
+            });
+        }
+    }, 10000); // შემოწმება ხდება ყოველ 10 წამში
+
+    // Enter-ზე გაგზავნა
+    const input = document.getElementById('chatInput');
+    if (input) {
+        input.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendChatMessage();
+        });
+    }
 }
 
 </script>
