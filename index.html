@@ -1319,36 +1319,19 @@ function drawSym(id, x, y, size, blur) {
 function drawWinLines(){
   if (!sCtx) return; // დაამატე ეს ხაზი
   sWinLines.forEach((line,idx)=>{
-    // ... დანარჩენი კოდი უცვლელია
-
-  sWinLines.forEach((line,idx)=>{
-
     const cols=['#ff4444','#44aaff','#44ff88','#ffaa00','#ff44dd','#00e5ff','#88ff44','#ffaa88','#ff88ff'];
-
     const col=cols[idx%cols.length];
-
     sCtx.save();
-
     sCtx.strokeStyle=col;sCtx.lineWidth=3;sCtx.shadowColor=col;sCtx.shadowBlur=18;sCtx.lineJoin='round';
-
     sCtx.beginPath();
-
     line.forEach((row,ci)=>{const x=ci*STEP+CELL/2,y=row*STEP+CELL/2;ci===0?sCtx.moveTo(x,y):sCtx.lineTo(x,y)});
-
     sCtx.stroke();
-
     line.forEach((row,ci)=>{
-
       sCtx.strokeStyle=col;sCtx.lineWidth=2;sCtx.shadowBlur=22;
-
       sCtx.beginPath();sCtx.roundRect(ci*STEP+1,row*STEP+1,CELL-2,CELL-2,7);sCtx.stroke();
-
     });
-
     sCtx.restore();
-
   });
-
 }
 
  
@@ -1488,7 +1471,6 @@ function doSlotSpin(){
 }
 
  
-
 function evalSlot() {
   const u = getCur();
   if (!u) return;
