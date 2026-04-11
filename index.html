@@ -66,28 +66,14 @@ firebase.auth().onAuthStateChanged((user) => {
     }
 });
 
-// --- ბალანსის განახლების ფუნქცია (ახალი) ---
-function setBal(v) {
-    const user = firebase.auth().currentUser;
-    if (!user) return;
-
-    const newBalance = Math.round(v * 100) / 100;
-
-    // მხოლოდ ბალანსს ვაახლებთ UID-ის მიხედვით
-    db.ref('players/' + user.uid).update({
-        balance: newBalance,
-        lastUpdate: Date.now()
-    }).catch(err => console.error("ბალანსის სინქრონიზაციის შეცდომა:", err));
-}
-
-// --- ბალანსის ჩვენება ეკრანზე ---
+// --- ბალანსის განახლების ფუნქცია ---
 function refreshBal() {
     if (!window.currentUserData) return;
-    const v = fmtM(window.currentUserData.balance);
-    
+    const v = fmtM(window.currentUserData.balance || 0);
+
     const el = document.getElementById('balVal');
     if (el) el.textContent = v;
-    
+
     const sb = document.getElementById('sBal');
     if (sb) sb.textContent = v;
 }
@@ -842,49 +828,58 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 
 ===================================================== */
 
-const SK={U:'ac_u3',C:'ac_c3',B:'ac_b3',J:'ac_j3',H:'ac_h3'};
+const getCur = () => {
+    const user = firebase.auth().currentUser;
+    return user ? user.uid : null;
+};
 
-const ld=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}};
+const getBal = (uid) => {
+    if (!window.currentUserData) return 0;
+    return Number(window.currentUserData.balance || 0);
+};
 
-const sv=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+const getJack = () => Number(window.gameState?.jackpot ?? 800);
+const setJack = (v) => {
+    window.gameState = window.gameState || { jackpot: 800, history: [] };
+    window.gameState.jackpot = Math.max(0, Math.round(v * 100) / 100);
+    const jpEl = document.getElementById('jpLobby');
+    if (jpEl) jpEl.textContent = fmtM(window.gameState.jackpot);
+    const grandEl = document.getElementById('grandJp');
+    if (grandEl) grandEl.textContent = fmtM(window.gameState.jackpot);
+    return window.gameState.jackpot;
+};
 
-const getUsers=()=>ld(SK.U,{});
+const getHist = () => (window.gameState?.history || []);
+const addHist = (item) => {
+    window.gameState = window.gameState || { jackpot: 800, history: [] };
+    window.gameState.history.unshift(item);
+    if (window.gameState.history.length > 60) window.gameState.history.pop();
+};
 
-const getCur=()=>localStorage.getItem(SK.C);
-
-const setCur=u=>u?localStorage.setItem(SK.C,u):localStorage.removeItem(SK.C);
-
-const getJack=()=>Number(ld(SK.J,800));
-
-const setJack=v=>sv(SK.J,Math.max(0,Math.round(v*100)/100));
-
-const getHist=()=>ld(SK.H,[]);
-
-const addHist=item=>{const h=getHist();h.unshift(item);if(h.length>60)h.pop();sv(SK.H,h)};
-
-
-function setBal(v) {
-    const user = firebase.auth().currentUser; // ვიღებთ ავტორიზებულ მომხმარებელს
+function setBal(u, v) {
+    const user = firebase.auth().currentUser;
     if (!user) {
-        console.warn("მომხმარებელი არ არის ავტორიზებული!");
+        console.warn("მომხმარებელი არ არის ავტორიზირებული!");
         return;
     }
 
-    const b = ld(SK.B, {});
     const balance = Math.round(v * 100) / 100;
-    b[user.email] = balance; // ვინახავთ ლოკალურად
-    sv(SK.B, b);
+    window.currentUserData = window.currentUserData || {};
+    window.currentUserData.balance = balance;
 
-    // ვაგზავნით ბაზაში UID-ის გამოყენებით
+    const el = document.getElementById('balVal');
+    if (el) el.textContent = fmtM(balance);
+    const sb = document.getElementById('sBal');
+    if (sb) sb.textContent = fmtM(balance);
+
     db.ref('players/' + user.uid).update({
         balance: balance,
         lastUpdate: Date.now()
     }).catch((error) => {
         console.error("სინქრონიზაციის შეცდომა:", error);
     });
-
-    refreshBal();
 }
+
 function updateLeaderboard() {
     const lbList = document.getElementById('leaderboardList');
     if (!lbList) return;
@@ -2020,8 +2015,7 @@ function initChat() {
         if (!chatEl) return;
         
         let html = '';
-        const user = getCur();
-        const currentUserName = user ? getUsers()[user]?.name : null;
+        const currentUserName = window.currentUserData?.name || null;
 
         snapshot.forEach((child) => {
             const m = child.val();
@@ -2029,7 +2023,7 @@ function initChat() {
             html += `
                 <div style="margin-bottom: 2px;">
                     <b style="color:${isMe ? 'var(--gold2)' : '#c49bff'}">${m.name}:</b> 
-                    <span style="color:#eee">${m.text}</span>
+                    <span style="color:#eee">${m.message || m.text}</span>
                 </div>
             `;
         });
