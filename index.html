@@ -8,9 +8,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-
   <script>
     // გლობალური ცვლადი, რომ კოდმა ყოველთვის დაინახოს ბაზა
     window.db = null;
@@ -42,6 +39,58 @@
 
     // ვიძახებთ მაშინვე
     initFirebase();
+
+    // --- ავტორიზაციის კონტროლი ---
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        // მომხმარებელი შესულია - ვუკავშირდებით მის მონაცემებს ბაზაში
+        db.ref('players/' + user.uid).on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // ვანახლებთ ლოკალურ მონაცემებს ბაზიდან
+                window.currentUserData = data;
+                refreshBal();
+                // თუ ლობიში ვართ, რეიტინგიც განახლდეს
+                if(document.getElementById('sLobby').classList.contains('active')) {
+                    updateLeaderboard();
+                }
+            }
+        });
+        // თუ ავტორიზაცია წარმატებულია, გადავიყვანოთ ლობიში
+        if(document.getElementById('sAuth').classList.contains('active')) {
+            goLobby();
+        }
+    } else {
+        // მომხმარებელი გასულია - ვაჩვენებთ ლოგინის გვერდს
+        showScreen('sAuth');
+    }
+});
+
+// --- ბალანსის განახლების ფუნქცია (ახალი) ---
+function setBal(v) {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    const newBalance = Math.round(v * 100) / 100;
+
+    // მხოლოდ ბალანსს ვაახლებთ UID-ის მიხედვით
+    db.ref('players/' + user.uid).update({
+        balance: newBalance,
+        lastUpdate: Date.now()
+    }).catch(err => console.error("ბალანსის სინქრონიზაციის შეცდომა:", err));
+}
+
+// --- ბალანსის ჩვენება ეკრანზე ---
+function refreshBal() {
+    if (!window.currentUserData) return;
+    const v = fmtM(window.currentUserData.balance);
+    
+    const el = document.getElementById('balVal');
+    if (el) el.textContent = v;
+    
+    const sb = document.getElementById('sBal');
+    if (sb) sb.textContent = v;
+}
   </script>
 <meta charset="UTF-8">
 
@@ -932,50 +981,48 @@ function switchTab(tab,el){
 
 }
 
-// --- შესვლა ---
 function doLogin() {
-  const u = document.getElementById('lU').value.trim() + "@casino.com";
-  const p = document.getElementById('lP').value;
+    const u = document.getElementById('lU').value.trim() + "@rustavi.com";
+    const p = document.getElementById('lP').value;
+    const msg = document.getElementById('lMsg');
 
-  firebase.auth().signInWithEmailAndPassword(u, p)
-    .then(() => {
-      goLobby();
-    })
-    .catch((error) => {
-      document.getElementById('lMsg').textContent = "არასწორი მონაცემები";
-    });
+    firebase.auth().signInWithEmailAndPassword(u, p)
+        .catch(error => {
+            msg.textContent = "არასწორი მომხმარებელი ან პაროლი!";
+        });
 }
 
-// --- რეგისტრაცია ---
 function doReg() {
     const n = document.getElementById('rN').value.trim();
-    const u = document.getElementById('rU').value.trim() + "@casino.com";
+    const u = document.getElementById('rU').value.trim();
     const p = document.getElementById('rP').value;
+    const msg = document.getElementById('rMsg');
 
     if (!n || !u || p.length < 6) {
-        document.getElementById('rMsg').textContent = 'პაროლი მინ. 6 სიმბოლო!';
+        msg.textContent = "შეავსეთ ველები (პაროლი მინ. 6 სიმბოლო)";
         return;
     }
 
-    firebase.auth().createUserWithEmailAndPassword(u, p)
+    firebase.auth().createUserWithEmailAndPassword(u + "@rustavi.com", p)
         .then((userCredential) => {
-            const user = userCredential.user;
-            // ვინახავთ მონაცემებს UID-ით
-            return db.ref('players/' + user.uid).set({
+            // წარმატებული რეგისტრაციისას ვქმნით მოთამაშის პროფილს ბაზაში
+            return db.ref('players/' + userCredential.user.uid).set({
                 name: n,
-                balance: 500,
                 username: u,
+                balance: 500, // საწყისი ბონუსი
                 createdAt: Date.now()
             });
         })
-        .then(() => {
-            goLobby();
-        })
-        .catch((error) => {
-            document.getElementById('rMsg').textContent = "შეცდომა: " + error.message;
+        .catch(error => {
+            msg.textContent = "შეცდომა: " + error.message;
         });
 }
-function doLogout(){setCur(null);slotLoopActive=false;rouLoopActive=false;showScreen('sAuth');updateHeader(false,false)}
+
+function doLogout() {
+    firebase.auth().signOut().then(() => {
+        location.reload(); // საიტის გადატვირთვა სუფთა გასვლისთვის
+    });
+}
 
  
 
@@ -1961,22 +2008,21 @@ setInterval(()=>{
   else showScreen('sAuth');
 
 })();
-  // --- CHAT FUNCTIONS ---
-function sendChatMessage() {
+ function sendChatMessage() {
     const input = document.getElementById('chatInput');
-    const msg = input.value.trim();
-    const u = getCur();
-    if (!msg || !u || !window.db) return;
+    const txt = input.value.trim();
+    const user = firebase.auth().currentUser;
 
-    const userData = getUsers()[u];
-    window.db.ref('chat').push({
-        name: userData.name || u,
-        text: msg,
-        time: Date.now() // ინახავს გაგზავნის ზუსტ დროს
+    if (!txt || !user || !window.currentUserData) return;
+
+    db.ref('chat').push({
+        name: window.currentUserData.name,
+        message: txt,
+        time: Date.now()
     });
+
     input.value = '';
 }
-
 function initChat() {
     if (!window.db || window.chatInitialized) return;
     window.chatInitialized = true; // რომ ბევრჯერ არ ჩაირთოს
