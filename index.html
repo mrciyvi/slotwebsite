@@ -8,6 +8,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <script>
     // გლობალური ცვლადი, რომ კოდმა ყოველთვის დაინახოს ბაზა
     window.db = null;
@@ -43,7 +44,10 @@
     // --- ავტორიზაციის კონტროლი ---
 firebase.auth().onAuthStateChanged((user) => {
     if (user) {
-        // მომხმარებელი შესულია - ვუკავშირდებით მის მონაცემებს ბაზაში
+        // მომხმარებელი შესულია - Socket.io დაკავშირება
+        initSocket();
+        
+        // მის მონაცემებს ბაზაში
         db.ref('players/' + user.uid).on('value', (snapshot) => {
             const data = snapshot.val();
             if (data) {
@@ -62,6 +66,7 @@ firebase.auth().onAuthStateChanged((user) => {
         }
     } else {
         // მომხმარებელი გასულია - ვაჩვენებთ ლოგინის გვერდს
+        disconnectSocket();
         showScreen('sAuth');
     }
 });
@@ -90,6 +95,78 @@ function refreshBal() {
     
     const sb = document.getElementById('sBal');
     if (sb) sb.textContent = v;
+}
+
+// ---------- SOCKET.IO POKER CLIENT ----------
+
+let socket = null;
+let pokerSocket = {'connected': false};
+
+function initSocket() {
+    // ⚠️ შეცვალე SERVER_URL-ი თქვენი Python server-ის მისამართით
+    const SERVER_URL = 'https://slotwebsite.onrender.com'; // Local development
+    // Production (Render/Railway): 'https://your-app.onrender.com'
+    
+    if (socket && socket.connected) return;
+    
+    socket = io(SERVER_URL, {
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5
+    });
+    
+    socket.on('connect', () => {
+        console.log('✅ Socket.io დაკავშირდა');
+        pokerSocket.connected = true;
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('👋 Socket.io გაიყო');
+        pokerSocket.connected = false;
+    });
+    
+    socket.on('error', (err) => {
+        console.error('❌ Socket.io შეცდომა:', err);
+    });
+    
+    // Poker events
+    socket.on('game_state_update', (data) => {
+        console.log('🎮 თამაშის მდგომარეობა:', data);
+        pokerSocket = { ...pokerSocket, ...data };
+        updatePokerUI();
+    });
+    
+    socket.on('my_hand', (data) => {
+        console.log('✋ თქვენი ხელი:', data.hand);
+        pokerState.myHand = data.hand;
+        updatePokerUI();
+    });
+    
+    socket.on('seat_joined', (data) => {
+        console.log('✅ ადგილი დაკავებულია:', data);
+        pokerSocket.mySeat = data.seat;
+    });
+    
+    socket.on('round_ended', (data) => {
+        console.log('🏆 რაუند დასრულდა:', data);
+        alert(`🏆 ${data.winner} მოიგო! ${fmtM(data.winAmount)}`);
+    });
+    
+    socket.on('error', (data) => {
+        if (data?.message) {
+            alert('❌ ' + data.message);
+            console.error(data.message);
+        }
+    });
+}
+
+function disconnectSocket() {
+    if (socket) {
+        socket.disconnect();
+        socket = null;
+        pokerSocket = {'connected': false};
+    }
 }
   </script>
 <meta charset="UTF-8">
@@ -1199,357 +1276,181 @@ function goLobby(){
 const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
 const SUITS = ['♠','♥','♦','♣'];
 
+// Poker state (Socket.io-დან მოდის)
 let pokerState = {
-  gameId: null,
-  table: [],
-  community: [],
+  phase: 'waiting',
+  players: ['', '', '', ''],
   pot: 0,
-  currentBet: 0,
-  phase: 'waiting', // waiting, preflop, flop, turn, river, showdown
-  dealer: 0,
-  currentPlayer: 0,
-  myHand: [],
+  community: [],
+  currentPlayer: -1,
+  bets: [0, 0, 0, 0],
+  folded: [false, false, false, false],
+  allIn: [false, false, false, false],
+  balances: [0, 0, 0, 0],
   mySeat: -1,
-  playerBets: [0,0,0,0],
-  playerStacks: [0,0,0,0],
-  playerFolded: [false,false,false,false],
-  playerAllIn: [false,false,false,false],
-  sidePots: [],
-  winners: []
+  myHand: [],
+  currentBet: 0
 };
 
 function goPokerLobby() {
   slotLoopActive = false;
   rouLoopActive = false;
+  
+  if (!pokerSocket.connected) {
+    alert('❌ სერვერთან დაკავშირება გაწყდა!');
+    return;
+  }
+  
   showScreen('sPokerLobby');
   updateHeader(false, true);
-  loadPokerTable();
-}
-
-function loadPokerTable() {
-  const user = getCur();
-  db.ref('pokerGame').get().then(snap => {
-    if (snap.exists()) {
-      const game = snap.val();
-      pokerState.table = game.players || ['','','',''];
-      pokerState.gameId = 'main';
-      renderPokerLobby();
-    } else {
-      db.ref('pokerGame').set({
-        players: ['','','',''],
-        phase: 'waiting',
-        pot: 0,
-        community: [],
-        dealer: 0,
-        createdAt: Date.now()
-      });
-    }
-  });
+  renderPokerLobby();
 }
 
 function renderPokerLobby() {
   const seatDiv = document.getElementById('pokerLobbySeats');
-  seatDiv.innerHTML = pokerState.table.map((seat, idx) => {
-    const userData = seat ? seat : 'ცარიელი';
-    const isMySeat = pokerState.mySeat === idx;
+  seatDiv.innerHTML = pokerState.players.map((seat, idx) => {
+    const occupied = seat ? `<div style="color:var(--gold2)">${seat}</div>` : '<div style="color:var(--muted)">ცარიელი</div>';
     return `
-      <div style="background:var(--panel); border:2px solid ${isMySeat ? 'var(--gold)' : (seat ? 'var(--border)' : 'rgba(212,160,23,.3)')}; border-radius:12px; padding:20px; text-align:center; cursor:${!seat && pokerState.mySeat === -1 ? 'pointer' : 'default'}; transition:all .2s; ${!seat && pokerState.mySeat === -1 ? 'onclick="setupSeat(' + idx + ')"' : ''}">
-        <div style="font-size:18px; font-weight:bold; color:${seat ? 'var(--gold2)' : 'var(--muted)'}; margin-bottom:10px;">ადგილი ${idx + 1}</div>
-        <div style="color:#aaa">${userData}</div>
+      <div style="background:var(--panel); border:2px solid ${pokerState.mySeat === idx ? 'var(--gold)' : (seat ? 'var(--border)' : 'rgba(212,160,23,.3)')}; border-radius:12px; padding:20px; text-align:center; cursor:${!seat && pokerState.mySeat === -1 ? 'pointer' : 'default'};" onclick="${!seat && pokerState.mySeat === -1 ? "setupSeat(" + idx + ")" : ''}">
+        <div style="font-size:18px; font-weight:bold; margin-bottom:10px;">ადგილი ${idx + 1}</div>
+        ${occupied}
       </div>
     `;
   }).join('');
 }
 
 function setupSeat(seatIdx) {
-  const user = getCur();
-  pokerState.mySeat = seatIdx;
-  pokerState.table[seatIdx] = window.currentUserData.name || 'Player';
-  pokerState.playerStacks[seatIdx] = getBal_Sync();
+  if (!window.currentUserData) {
+    alert('❌ მომხმარებელი არ დამტკიცებული!');
+    return;
+  }
   
-  db.ref('pokerGame/players/' + seatIdx).set(window.currentUserData.name).then(() => {
-    renderPokerLobby();
+  const name = window.currentUserData.name || 'Player';
+  const balance = window.currentUserData.balance || 0;
+  
+  socket.emit('join_seat', {
+    seat: seatIdx,
+    name: name,
+    balance: balance
   });
+  
+  pokerState.mySeat = seatIdx;
 }
 
 function goPokerGame() {
   showScreen('sPoker');
   updateHeader(true, true);
-  
-  // Real-time update
-  db.ref('pokerGame').on('value', snap => {
-    const game = snap.val();
-    if (game) {
-      pokerState.table = game.players || ['','','',''];
-      pokerState.community = game.community || [];
-      pokerState.pot = game.pot || 0;
-      pokerState.phase = game.phase || 'waiting';
-      pokerState.dealer = game.dealer || 0;
-      pokerState.currentPlayer = game.currentPlayer || 0;
-      updatePokerUI();
-    }
-  });
+  updatePokerUI();
 }
 
 function startPokerRound() {
-  const activePlayers = pokerState.table.filter(p => p).length;
+  const activePlayers = pokerState.players.filter(p => p).length;
   if (activePlayers < 2) {
-    alert('მინიმუმ 2 მოთამაშე!');
+    alert('❌ მინიმუმ 2 მოთამაშე!');
     return;
   }
   
-  // დეთ ბილეთები
-  pokerState.myHand = generateHand();
-  pokerState.phase = 'preflop';
-  pokerState.pot = 0;
-  pokerState.currentBet = 0;
-  pokerState.playerBets = [0,0,0,0];
-  pokerState.playerFolded = [false,false,false,false];
-  pokerState.playerAllIn = [false,false,false,false];
-  pokerState.community = [];
-  
-  // Dealer & Blinds
-  const smallBlindIdx = (pokerState.dealer + 1) % 4;
-  const bigBlindIdx = (pokerState.dealer + 2) % 4;
-  pokerState.currentPlayer = (pokerState.dealer + 3) % 4;
-  
-  // Post blinds
-  pokerState.playerBets[smallBlindIdx] = 50;
-  pokerState.playerBets[bigBlindIdx] = 100;
-  pokerState.pot = 150;
-  pokerState.currentBet = 100;
-  
-  db.ref('pokerGame').update({
-    phase: 'preflop',
-    pot: 150,
-    currentBet: 100,
-    community: [],
-    dealer: pokerState.dealer
-  });
-  
-  updatePokerUI();
-}
-
-function generateHand() {
-  const hand = [];
-  while (hand.length < 2) {
-    const card = RANKS[Math.floor(Math.random() * RANKS.length)] + 
-                 SUITS[Math.floor(Math.random() * SUITS.length)];
-    if (!hand.includes(card)) hand.push(card);
-  }
-  return hand;
+  socket.emit('start_round');
 }
 
 function pokerAction(action) {
-  if (pokerState.mySeat !== pokerState.currentPlayer) return;
-  
-  const bal = getBal_Sync();
-  
-  if (action === 'fold') {
-    pokerState.playerFolded[pokerState.mySeat] = true;
-    
-  } else if (action === 'check') {
-    if (pokerState.currentBet > pokerState.playerBets[pokerState.mySeat]) return;
-    
-  } else if (action === 'call') {
-    const amountNeeded = pokerState.currentBet - pokerState.playerBets[pokerState.mySeat];
-    if (bal < amountNeeded) return;
-    pokerState.playerBets[pokerState.mySeat] += amountNeeded;
-    pokerState.pot += amountNeeded;
-    setBal(bal - amountNeeded);
-    
-  } else if (action === 'allin') {
-    pokerState.pot += bal;
-    pokerState.playerBets[pokerState.mySeat] += bal;
-    pokerState.playerAllIn[pokerState.mySeat] = true;
-    setBal(0);
-  }
-  
-  nextPlayer();
-  updatePokerUI();
-}
-
-function showRaiseInput() {
-  document.getElementById('raiseInput').style.display = 'block';
-}
-
-function confirmRaise() {
-  const amount = Number(document.getElementById('raiseVal').value);
-  const bal = getBal_Sync();
-  
-  if (amount < pokerState.currentBet) {
-    alert('Raise უნდა იყოს მეტი!');
-    return;
-  }
-  if (amount > bal) {
-    alert('არასაკმარისი ბალანსი!');
+  if (pokerState.mySeat !== pokerState.currentPlayer) {
+    alert('❌ ეს არ არის თქვენი ქმედება!');
     return;
   }
   
-  pokerState.currentBet = amount;
-  pokerState.playerBets[pokerState.mySeat] = amount;
-  pokerState.pot += amount;
-  setBal(bal - amount);
+  const data = { seat: pokerState.mySeat, action: action };
   
-  cancelRaise();
-  nextPlayer();
-  updatePokerUI();
-}
-
-function cancelRaise() {
-  document.getElementById('raiseInput').style.display = 'none';
-  document.getElementById('raiseVal').value = '';
-}
-
-function nextPlayer() {
-  let next = (pokerState.currentPlayer + 1) % 4;
-  let attempts = 0;
-  
-  while ((pokerState.playerFolded[next] || !pokerState.table[next]) && attempts < 4) {
-    next = (next + 1) % 4;
-    attempts++;
-  }
-  
-  pokerState.currentPlayer = next;
-  
-  if (attempts >= 4 || checkRoundEnd()) {
-    moveToNextPhase();
-  }
-}
-
-function checkRoundEnd() {
-  const activePlayers = pokerState.table.filter((p, i) => p && !pokerState.playerFolded[i]).length;
-  return activePlayers <= 1;
-}
-
-function moveToNextPhase() {
-  if (pokerState.phase === 'preflop') {
-    pokerState.community = [generateCard(), generateCard(), generateCard()]; // Flop
-    pokerState.phase = 'flop';
-    pokerState.currentBet = 0;
-    resetBets();
-    
-  } else if (pokerState.phase === 'flop') {
-    pokerState.community.push(generateCard()); // Turn
-    pokerState.phase = 'turn';
-    pokerState.currentBet = 0;
-    resetBets();
-    
-  } else if (pokerState.phase === 'turn') {
-    pokerState.community.push(generateCard()); // River
-    pokerState.phase = 'river';
-    pokerState.currentBet = 0;
-    resetBets();
-    
-  } else if (pokerState.phase === 'river') {
-    endGame();
-  }
-  
-  db.ref('pokerGame').update({
-    phase: pokerState.phase,
-    community: pokerState.community,
-    currentBet: 0
-  });
-  
-  updatePokerUI();
-}
-
-function resetBets() {
-  pokerState.playerBets = [0,0,0,0];
-  pokerState.currentPlayer = (pokerState.dealer + 1) % 4;
-}
-
-function generateCard() {
-  return RANKS[Math.floor(Math.random() * RANKS.length)] + 
-         SUITS[Math.floor(Math.random() * SUITS.length)];
-}
-
-function endGame() {
-  const activePlayers = pokerState.table.filter((p, i) => p && !pokerState.playerFolded[i]);
-  const winAmount = pokerState.pot / activePlayers.length;
-  
-  activePlayers.forEach((player, i) => {
-    const bal = getBal_Sync();
-    if (pokerState.mySeat === i) {
-      setBal(bal + winAmount);
+  if (action === 'raise') {
+    const raiseAmount = prompt('რა თანხით გაზიდეთ?');
+    if (raiseAmount) {
+      data.amount = Number(raiseAmount);
+    } else {
+      return;
     }
-  });
+  }
   
-  alert('თამაში დასრულდა! მოგება: ' + fmtM(winAmount));
-  
-  pokerState.dealer = (pokerState.dealer + 1) % 4;
-  pokerState.phase = 'waiting';
-  
-  db.ref('pokerGame').update({
-    phase: 'waiting',
-    pot: 0,
-    community: [],
-    dealer: pokerState.dealer
-  });
-  
-  updatePokerUI();
+  socket.emit('player_action', data);
+}
+
+function nextPhase() {
+  socket.emit('next_phase');
+}
+
+function endRound() {
+  socket.emit('end_round');
+}
+
+function leavePokerGame() {
+  socket.emit('leave_table');
+  pokerState.mySeat = -1;
+  goLobby();
 }
 
 function updatePokerUI() {
   // Update seats
   for (let i = 0; i < 4; i++) {
     const seat = document.getElementById('seat' + i);
-    const name = pokerState.table[i] || 'ცარიელი';
-    const chips = pokerState.playerStacks[i] || 0;
-    const isCurrent = i === pokerState.currentPlayer ? '→' : '';
-    const folded = pokerState.playerFolded[i] ? ' (F)' : '';
-    const bet = pokerState.playerBets[i] > 0 ? ` [$${pokerState.playerBets[i]}]` : '';
+    if (!seat) continue;
+    
+    const name = pokerState.players[i] || 'ცარიელი';
+    const chips = pokerState.balances[i] || 0;
+    const isCurrent = i === pokerState.currentPlayer ? '→ ' : '';
+    const folded = pokerState.folded[i] ? ' (Fold)' : '';
+    const bet = pokerState.bets[i] > 0 ? ` [$${pokerState.bets[i]}]` : '';
     
     seat.innerHTML = `
-      <div class="seat-name">${isCurrent} ${name} ${folded}</div>
+      <div class="seat-name">${isCurrent}${name}${folded}</div>
       <div class="seat-chips">${fmtM(chips)}${bet}</div>
     `;
     
-    if (i === pokerState.mySeat) {
-      seat.classList.add('active');
-    }
-    if (i === pokerState.dealer) {
-      seat.classList.add('dealer');
-    }
+    seat.classList.toggle('active', i === pokerState.mySeat);
+    seat.classList.toggle('dealer', i === (pokerState.dealer || 0));
   }
   
   // Pot
-  document.getElementById('pokerPot').textContent = 'სულ: ' + fmtM(pokerState.pot);
+  const potEl = document.getElementById('pokerPot');
+  if (potEl) potEl.textContent = 'სულ: ' + fmtM(pokerState.pot);
   
   // Community cards
   const ccDiv = document.getElementById('pokeCommunity');
-  ccDiv.innerHTML = pokerState.community.map(c => `<div class="card-display">${c}</div>`).join('');
+  if (ccDiv) {
+    ccDiv.innerHTML = pokerState.community.map(c => `<div class="card-display">${c}</div>`).join('');
+  }
   
   // My hand
   const mhDiv = document.getElementById('pokerMyHand');
-  mhDiv.innerHTML = pokerState.myHand.map(c => `<div class="card-display">${c}</div>`).join('');
+  if (mhDiv) {
+    mhDiv.innerHTML = pokerState.myHand.map(c => `<div class="card-display">${c}</div>`).join('');
+  }
   
   // Actions
   const isMyTurn = pokerState.mySeat === pokerState.currentPlayer && pokerState.phase !== 'waiting';
-  document.getElementById('checkBtn').style.display = isMyTurn && pokerState.currentBet <= pokerState.playerBets[pokerState.mySeat] ? 'block' : 'none';
-  document.getElementById('callBtn').style.display = isMyTurn && pokerState.currentBet > 0 ? 'block' : 'none';
-  document.getElementById('raiseBtn').style.display = isMyTurn ? 'block' : 'none';
-  document.getElementById('foldBtn').style.display = isMyTurn ? 'block' : 'none';
-  document.getElementById('allInBtn').style.display = isMyTurn ? 'block' : 'none';
+  const checkBtn = document.getElementById('checkBtn');
+  const callBtn = document.getElementById('callBtn');
+  const raiseBtn = document.getElementById('raiseBtn');
+  const foldBtn = document.getElementById('foldBtn');
+  const allInBtn = document.getElementById('allInBtn');
+  
+  if (checkBtn) checkBtn.style.display = isMyTurn && pokerState.currentBet <= pokerState.bets[pokerState.mySeat] ? 'block' : 'none';
+  if (callBtn) callBtn.style.display = isMyTurn && pokerState.currentBet > 0 ? 'block' : 'none';
+  if (raiseBtn) raiseBtn.style.display = isMyTurn ? 'block' : 'none';
+  if (foldBtn) foldBtn.style.display = isMyTurn ? 'block' : 'none';
+  if (allInBtn) allInBtn.style.display = isMyTurn ? 'block' : 'none';
   
   // Status
   const statusDiv = document.getElementById('pokerStatus');
-  if (pokerState.phase === 'waiting') {
-    statusDiv.textContent = '⏳ თამაშის დამწყებს ელოდება...';
-  } else if (isMyTurn) {
-    statusDiv.textContent = '🎯 თქვენი ქმედება!';
-  } else {
-    statusDiv.textContent = `⏳ ${pokerState.table[pokerState.currentPlayer]}-ის ქმედება...`;
+  if (statusDiv) {
+    if (pokerState.phase === 'waiting') {
+      statusDiv.textContent = '⏳ თამაშის დამწყებს ელოდება...';
+    } else if (isMyTurn) {
+      statusDiv.textContent = '🎯 თქვენი ქმედება!';
+    } else if (pokerState.currentPlayer >= 0) {
+      statusDiv.textContent = `⏳ ${pokerState.players[pokerState.currentPlayer]}-ის ქმედება...`;
+    } else {
+      statusDiv.textContent = `📊 ფაზე: ${pokerState.phase}`;
+    }
   }
-}
-
-function leavePokerGame() {
-  const seatIdx = pokerState.mySeat;
-  if (seatIdx !== -1) {
-    db.ref('pokerGame/players/' + seatIdx).set('');
-  }
-  pokerState.mySeat = -1;
-  goLobby();
 }
 function addBalance(amt){
 
