@@ -57,7 +57,7 @@
         </div>
         <div class="card">
           <h3>რეგისტრაცია</h3>
-          <div class="field"><label>იმეილი</label><input id="registerEmail" type="email" placeholder="imi@example.com"></div>
+          <div class="field"><label>მეილი</label><input id="registerEmail" type="email" placeholder="imi@example.com"></div>
           <div class="field"><label>პაროლი</label><input id="registerPassword" type="password" placeholder="••••••••"></div>
           <div class="field"><label>სახელი</label><input id="registerName" type="text" placeholder="თქვენი სახელი"></div>
           <button class="btn" onclick="registerUser()">რეგისტრაცია</button>
@@ -92,8 +92,8 @@
           <button class="btn" style="margin-top:14px" onclick="showScreen('pokerLobbyScreen')">დეტალურად ნახვა</button>
         </div>
         <div class="card">
-          <h3>თამაშების სტატიები</h3>
-          <p class="small">ეს აპლიკაცია მუშაობს პირდაპირ Firebase Realtime DB-ზე და გითჰაბ გვერდიდან ჰოსტირდება.</p>
+          <h3>ინფორმაცია</h3>
+          <p class="small">ამ აპლიკაციის ყველაფერი იყენებს Firebase Realtime DB-ს, ამიტომ GitHub Pages-იდან პირდაპირ მუშაობს.</p>
         </div>
       </div>
     </section>
@@ -173,16 +173,21 @@
     let currentUserData = null;
     let currentTableId = null;
     let currentTableRef = null;
+    let currentUserRef = null;
+    let tablesListenerAttached = false;
 
     const screens = document.querySelectorAll('.screen');
     const toast = document.getElementById('toast');
     const headerActions = document.getElementById('headerActions');
 
+    function formatCurrency(value) {
+      return `₾${Number(value || 0).toFixed(2)}`;
+    }
+
     function showScreen(id) {
       screens.forEach(screen => screen.classList.toggle('active', screen.id === id));
       if (id === 'lobbyScreen' || id === 'pokerLobbyScreen') {
         loadLeaderboard();
-        loadTables();
       }
     }
 
@@ -202,7 +207,7 @@
         <div style="text-align:right;min-width:220px">
           <div class="small">მომხმარებელი</div>
           <div style="font-weight:800">${currentUserData.name || currentUserData.email}</div>
-          <div class="small">₾${Number(currentUserData.balance || 0).toFixed(2)}</div>
+          <div class="small">${formatCurrency(currentUserData.balance)}</div>
         </div>
       `;
     }
@@ -210,7 +215,7 @@
     function refreshUserUI() {
       if (!currentUserData) return;
       document.getElementById('playerName').textContent = currentUserData.name || currentUserData.email;
-      document.getElementById('playerBalance').textContent = `₾${Number(currentUserData.balance || 0).toFixed(2)}`;
+      document.getElementById('playerBalance').textContent = formatCurrency(currentUserData.balance);
       updateHeader();
     }
 
@@ -247,17 +252,20 @@
 
     async function logoutUser() {
       await auth.signOut();
+      if (currentUserRef) currentUserRef.off();
+      if (currentTableRef) currentTableRef.off();
+      currentUserRef = null;
+      currentTableRef = null;
       currentUserData = null;
       currentTableId = null;
-      if (currentTableRef) currentTableRef.off();
-      updateHeader();
       showScreen('authScreen');
     }
 
     function ensurePlayerExists(user) {
-      db.ref(`players/${user.uid}`).once('value').then(snapshot => {
+      const playerRef = db.ref(`players/${user.uid}`);
+      playerRef.once('value').then(snapshot => {
         if (!snapshot.exists()) {
-          db.ref(`players/${user.uid}`).set({
+          playerRef.set({
             email: user.email || '',
             name: user.displayName || 'Player',
             balance: 100,
@@ -267,18 +275,30 @@
       });
     }
 
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        ensurePlayerExists(user);
-        db.ref(`players/${user.uid}`).on('value', snapshot => {
-          currentUserData = snapshot.val() || {};
-          refreshUserUI();
+    function attachUserListener(uid) {
+      if (currentUserRef) currentUserRef.off();
+      currentUserRef = db.ref(`players/${uid}`);
+      currentUserRef.on('value', snapshot => {
+        currentUserData = snapshot.val() || {};
+        refreshUserUI();
+      });
+    }
+
+    function attachTablesListener() {
+      if (tablesListenerAttached) return;
+      tablesListenerAttached = true;
+      db.ref('poker/tables').on('value', snapshot => {
+        const data = snapshot.val() || {};
+        const list = document.getElementById('pokerTableList');
+        const overview = document.getElementById('pokerTables');
+        const rows = Object.entries(data).map(([id, table]) => {
+          const count = Object.keys(table.players || {}).length;
+          return `<div class="list-item" onclick="joinTable('${id}')"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${table.name}</strong><span class="status">${table.status}</span></div><div class="small">${count}/${table.maxPlayers} მოთამაშე • პოტი ${formatCurrency(table.pot)}</div></div>`;
         });
-        showScreen('lobbyScreen');
-      } else {
-        showScreen('authScreen');
-      }
-    });
+        list.innerHTML = rows.join('') || '<div style="color:var(--muted)">მომავალი მაგიდა არ არის</div>';
+        overview.innerHTML = rows.join('') || '<div style="color:var(--muted)">მომავალი მაგიდა არ არის</div>';
+      });
+    }
 
     function loadLeaderboard() {
       db.ref('players').orderByChild('balance').limitToLast(10).once('value').then(snapshot => {
@@ -286,21 +306,7 @@
         const players = [];
         snapshot.forEach(child => players.push(child.val()));
         players.reverse();
-        list.innerHTML = players.map(player => `<li style="display:flex;justify-content:space-between;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04)"><span>${player.name || player.email}</span><strong>₾${Number(player.balance || 0).toFixed(2)}</strong></li>`).join('') || '<li style="color:var(--muted)">არ არის მონაცემები</li>';
-      });
-    }
-
-    function loadTables() {
-      db.ref('poker/tables').on('value', snapshot => {
-        const data = snapshot.val() || {};
-        const list = document.getElementById('pokerTableList');
-        const overview = document.getElementById('pokerTables');
-        const rows = Object.entries(data).map(([id, table]) => {
-          const count = Object.keys(table.players || {}).length;
-          return `<div class="list-item" onclick="joinTable('${id}')"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${table.name}</strong><span class="status">${table.status}</span></div><div class="small">${count}/${table.maxPlayers} მოთამაშე • პოტი ₾${Number(table.pot||0).toFixed(2)}</div></div>`;
-        });
-        list.innerHTML = rows.join('') || '<div style="color:var(--muted)">მომავალი მაგიდა არ არის</div>';
-        overview.innerHTML = rows.join('') || '<div style="color:var(--muted)">მომავალი მაგიდა არ არის</div>';
+        list.innerHTML = players.map(player => `<li style="display:flex;justify-content:space-between;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04)"><span>${player.name || player.email}</span><strong>${formatCurrency(player.balance)}</strong></li>`).join('') || '<li style="color:var(--muted)">არ არის მონაცემები</li>';
       });
     }
 
@@ -355,6 +361,7 @@
       if (!currentTableId || !auth.currentUser) return;
       await db.ref(`poker/tables/${currentTableId}/players/${auth.currentUser.uid}`).remove();
       if (currentTableRef) currentTableRef.off();
+      currentTableRef = null;
       currentTableId = null;
       showScreen('pokerLobbyScreen');
     }
@@ -365,12 +372,12 @@
       info.innerHTML = `
         <div class="small">მაგიდა: ${table.name}</div>
         <div class="small">სტატუსი: ${table.status}</div>
-        <div class="small">პოტი: ₾${Number(table.pot || 0).toFixed(2)}</div>
-        <div class="small">ბლინდები: ₾${table.smallBlind}/${table.bigBlind}</div>
+        <div class="small">პოტი: ${formatCurrency(table.pot)}</div>
+        <div class="small">ბლინდები: ${formatCurrency(table.smallBlind)}/${formatCurrency(table.bigBlind)}</div>
       `;
       document.getElementById('pokerPlayersInfo').innerHTML = `
         <h4>მოთამაშეები</h4>
-        ${players.map(player => `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)"><strong>${player.name}</strong> • ₾${Number(player.balance || 0).toFixed(2)} ${player.uid === auth.currentUser.uid ? '(თქვენ)' : ''}</div>`).join('')}
+        ${players.map(player => `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)"><strong>${player.name}</strong> • ${formatCurrency(player.balance)} ${player.uid === auth.currentUser.uid ? '(თქვენ)' : ''}</div>`).join('')}
       `;
     }
 
@@ -380,14 +387,18 @@
       const symbols = [getSlotSymbol(), getSlotSymbol(), getSlotSymbol()];
       document.getElementById('slotSymbols').textContent = symbols.join(' ');
       const win = calculateSlotWin(symbols, bet);
-      await updateBalance(-bet);
-      if (win > 0) {
-        await updateBalance(win);
-        showToast(`🎉 გაიმარჯვე! +₾${win.toFixed(2)}`);
-      } else {
-        showToast('წააგე, სცადე ისევ.');
+      try {
+        await updateBalance(-bet);
+        if (win > 0) {
+          await updateBalance(win);
+          showToast(`🎉 გაიმარჯვე! +${formatCurrency(win)}`);
+        } else {
+          showToast('წააგე, სცადე ისევ.');
+        }
+        document.getElementById('slotResult').textContent = win > 0 ? `გამარჯვება ${formatCurrency(win)}` : 'წააგე';
+      } catch (error) {
+        showToast('არ არის საკმარისი ბალანსი', 'error');
       }
-      document.getElementById('slotResult').textContent = win > 0 ? `გამარჯვება ₾${win.toFixed(2)}` : 'წააგე';
     }
 
     async function playRoulette() {
@@ -396,15 +407,19 @@
       if (!validateBet(bet)) return;
       const number = Math.floor(Math.random() * 37);
       const color = number === 0 ? 'green' : number % 2 === 0 ? 'black' : 'red';
-      await updateBalance(-bet);
-      let win = 0;
-      if (choice === color) win = bet * 2;
-      document.getElementById('rouletteResult').textContent = `ნუმერი ${number} (${color})`;
-      if (win > 0) {
-        await updateBalance(win);
-        showToast(`🎉 გაიმარჯვე! +₾${win.toFixed(2)}`);
-      } else {
-        showToast('წააგე რულეტი');
+      try {
+        await updateBalance(-bet);
+        let win = 0;
+        if (choice === color) win = bet * 2;
+        document.getElementById('rouletteResult').textContent = `ნუმერი ${number} (${color})`;
+        if (win > 0) {
+          await updateBalance(win);
+          showToast(`🎉 გაიმარჯვე! +${formatCurrency(win)}`);
+        } else {
+          showToast('წააგე რულეტი', 'error');
+        }
+      } catch (error) {
+        showToast('არ არის საკმარისი ბალანსი', 'error');
       }
     }
 
@@ -414,7 +429,7 @@
     }
 
     function calculateSlotWin(symbols, bet) {
-      const [a,b,c] = symbols;
+      const [a, b, c] = symbols;
       if (a === b && b === c) {
         if (a === '7️⃣') return bet * 10;
         if (a === '⭐') return bet * 5;
@@ -433,18 +448,34 @@
 
     function updateBalance(delta) {
       return new Promise((resolve, reject) => {
-        const ref = db.ref(`players/${auth.currentUser.uid}/balance`);
+        const uid = auth.currentUser?.uid;
+        if (!uid) return reject(new Error('no-user'));
+        const ref = db.ref(`players/${uid}/balance`);
         ref.transaction(current => {
           const value = Number(current || 0);
           if (value + delta < 0) return undefined;
           return Number((value + delta).toFixed(2));
         }, (error, committed, snapshot) => {
-          if (error) { showToast('როცა ბალანსი განახლდა, მოხდა შეცდომა', 'error'); reject(error); }
-          else if (!committed) { showToast('არ არის საკმარისი ბალანსი', 'error'); reject(new Error('insufficient')); }
-          else { resolve(snapshot.val()); }
+          if (error) reject(error);
+          else if (!committed) reject(new Error('insufficient'));
+          else resolve(snapshot.val());
         });
       });
     }
+
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        attachUserListener(user.uid);
+        attachTablesListener();
+        ensurePlayerExists(user);
+        showScreen('lobbyScreen');
+      } else {
+        if (currentUserRef) currentUserRef.off();
+        currentUserRef = null;
+        currentUserData = null;
+        showScreen('authScreen');
+      }
+    });
   </script>
 </body>
 </html>
