@@ -2,480 +2,2067 @@
 <html lang="ka">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-  <title>რუსთავი კაზინო</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+  <title>რუსთავ სლოტ — პრემიუმ ქართული კაზინო</title>
+  
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
-  <style>
-    :root{--bg:#07070f;--panel:#11101f;--panel2:#1f1c36;--text:#f2ecf9;--muted:#8d8aac;--accent:#d4a017;--accent2:#f0c040;--border:1px solid rgba(212,160,23,.18);--radius:18px}
-    *{box-sizing:border-box}
-    html,body{margin:0;padding:0;min-height:100%;font-family:'Noto Sans Georgian',sans-serif;background:#05050e;color:var(--text)}
-    body{display:flex;justify-content:center;padding:20px}
-    .app{width:100%;max-width:1180px}
-    header{display:flex;align-items:center;justify-content:space-between;padding:18px;background:rgba(15,14,29,.98);border:var(--border);border-radius:22px;margin-bottom:18px;position:sticky;top:0;z-index:10}
-    .logo{font-size:20px;font-weight:900;color:var(--accent)}
-    .btn,button{border:none;outline:none;cursor:pointer;border-radius:14px;padding:12px 18px;font-size:14px;font-weight:700;transition:.18s ease;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#090917}
-    .btn:hover,button:hover{filter:brightness(1.05)}
-    .panel{background:rgba(15,14,29,.95);border:var(--border);border-radius:22px;padding:22px;box-shadow:0 30px 60px rgba(0,0,0,.25);margin-bottom:18px}
-    .screen{display:none}
-    .screen.active{display:block}
-    .grid{display:grid;gap:18px}
-    .grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
-    .field{display:grid;gap:8px;margin-bottom:14px}
-    label{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
-    input,select{border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.04);color:var(--text);padding:12px;font-size:14px}
-    .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:18px}
-    .small{font-size:13px;color:var(--muted)}
-    .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:14px 18px;border-radius:999px;background:rgba(8,8,18,.96);color:#fff;font-weight:700;display:none;z-index:11}
-    .toast.show{display:block}
-    .list{display:grid;gap:14px}
-    .list-item{padding:16px;border-radius:16px;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);cursor:pointer;transition:.18s ease}
-    .list-item:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(0,0,0,.24)}
-    .status{display:inline-flex;padding:6px 10px;border-radius:999px;background:rgba(212,160,23,.14);color:var(--accent2);font-size:12px}
-    @media(max-width:920px){.grid-2,.grid-3{grid-template-columns:1fr}}
-  </style>
+  <script>
+    // გლობალური ცვლადი, რომ კოდმა ყოველთვის დაინახოს ბაზა
+    window.db = null;
+
+    function initFirebase() {
+      try {
+        const firebaseConfig = {
+          apiKey: "AIzaSyBEQnl0YOxLEchYsdDmbrqKGFvALSyvLfA",
+          authDomain: "slotmachine-a9ff4.firebaseapp.com",
+          databaseURL: "https://slotmachine-a9ff4-default-rtdb.europe-west1.firebasedatabase.app",
+          projectId: "slotmachine-a9ff4",
+          storageBucket: "slotmachine-a9ff4.firebasestorage.app",
+          messagingSenderId: "1053857390923",
+          appId: "1:1053857390923:web:5d37a845dd4f370cc948ce",
+          measurementId: "G-QTBG5HQ5PM"
+        };
+
+        if (typeof firebase !== 'undefined') {
+          firebase.initializeApp(firebaseConfig);
+          window.db = firebase.database();
+          console.log("✅ Firebase მზად არის!");
+        } else {
+          console.error("❌ Firebase ბიბლიოთეკა ვერ ჩაიტვირთა.");
+        }
+      } catch (e) {
+        console.error("❌ ინიციალიზაციის შეცდომა:", e);
+      }
+    }
+
+    // ვიძახებთ მაშინვე
+    initFirebase();
+
+    // --- ავტორიზაციის კონტროლი ---
+firebase.auth().onAuthStateChanged((user) => {
+    if (user) {
+        // მომხმარებელი შესულია - ვუკავშირდებით მის მონაცემებს ბაზაში
+        db.ref('players/' + user.uid).on('value', (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // ვანახლებთ ლოკალურ მონაცემებს ბაზიდან
+                window.currentUserData = data;
+                refreshBal();
+                // თუ ლობიში ვართ, რეიტინგიც განახლდეს
+                if(document.getElementById('sLobby').classList.contains('active')) {
+                    updateLeaderboard();
+                }
+            }
+        });
+        // თუ ავტორიზაცია წარმატებულია, გადავიყვანოთ ლობიში
+        if(document.getElementById('sAuth').classList.contains('active')) {
+            goLobby();
+        }
+    } else {
+        // მომხმარებელი გასულია - ვაჩვენებთ ლოგინის გვერდს
+        showScreen('sAuth');
+    }
+});
+
+// --- ბალანსის განახლების ფუნქცია (ახალი) ---
+function setBal(v) {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    const newBalance = Math.round(v * 100) / 100;
+
+    // მხოლოდ ბალანსს ვაახლებთ UID-ის მიხედვით
+    db.ref('players/' + user.uid).update({
+        balance: newBalance,
+        lastUpdate: Date.now()
+    }).catch(err => console.error("ბალანსის სინქრონიზაციის შეცდომა:", err));
+}
+
+// --- ბალანსის ჩვენება ეკრანზე ---
+function refreshBal() {
+    if (!window.currentUserData) return;
+    const v = fmtM(window.currentUserData.balance);
+    
+    const el = document.getElementById('balVal');
+    if (el) el.textContent = v;
+    
+    const sb = document.getElementById('sBal');
+    if (sb) sb.textContent = v;
+}
+  </script>
+<meta charset="UTF-8">
+
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+
+<title>რუსთავ სლოტ — პრემიუმ ქართული კაზინო</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600;700&family=Noto+Sans+Georgian:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+
+  --gold:#d4a017;--gold2:#f0c040;--gold3:#ffe480;
+
+  --dark:#07060e;--dark2:#100e1a;--dark3:#1b1228;
+
+  --panel:#110f1e;--panelb:#1c1830;
+
+  --border:rgba(212,160,23,0.18);--glow:rgba(212,160,23,0.1);
+
+  --red:#cc2200;--green:#2da862;--text:#e8dfc8;--muted:#7a7090;
+
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+html,body{height:100%;overflow-x:hidden;font-family:'Noto Sans Georgian',sans-serif;background:var(--dark);color:var(--text)}
+
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+
+  background:radial-gradient(ellipse 80% 50% at 50% 0%,rgba(155,109,255,.07),transparent 65%),
+
+  radial-gradient(ellipse 50% 30% at 0% 100%,rgba(212,160,23,.05),transparent 60%),
+
+  radial-gradient(ellipse 50% 30% at 100% 100%,rgba(212,160,23,.05),transparent 60%)}
+
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+ 
+
+/* PARTICLES */
+
+#pCanvas{position:fixed;inset:0;z-index:200;pointer-events:none}
+
+ 
+
+/* MEGA OVERLAY */
+
+.mega-ov{display:none;position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.9);align-items:center;justify-content:center;flex-direction:column}
+
+.mega-ov.show{display:flex;animation:fIn .3s ease}
+
+@keyframes fIn{from{opacity:0}}
+
+.mega-t{font-family:'Cinzel Decorative',serif;font-size:58px;font-weight:900;text-align:center;
+
+  background:linear-gradient(90deg,var(--gold),var(--gold2),var(--gold3),var(--gold2),var(--gold));
+
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+
+  animation:mpulse .8s ease-in-out infinite;filter:drop-shadow(0 0 28px rgba(212,160,23,.7))}
+
+.mega-a{font-family:'Cinzel',serif;font-size:38px;color:var(--gold2);text-align:center;margin-top:10px}
+
+@keyframes mpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+
+.mega-close{margin-top:28px;padding:14px 32px;border:none;border-radius:12px;
+
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+
+  color:#07060e;font-family:'Noto Sans Georgian',sans-serif;font-size:15px;font-weight:700;cursor:pointer}
+
+ 
+
+/* HEADER */
+
+header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
+
+  padding:10px 18px;background:rgba(7,6,14,.92);backdrop-filter:blur(14px);
+
+  border-bottom:1px solid var(--border);flex-shrink:0}
+
+.logo{font-family:'Cinzel Decorative',serif;font-size:15px;font-weight:900;letter-spacing:2px;white-space:nowrap;
+
+  background:linear-gradient(90deg,var(--gold),var(--gold2),var(--gold3));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+
+.h-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+.bal-badge{display:flex;align-items:center;gap:8px;background:rgba(212,160,23,.07);border:1px solid var(--border);border-radius:10px;padding:7px 13px}
+
+.bal-label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:1.5px;display:block}
+
+.bal-val{font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--gold2)}
+
+.hbtn{padding:7px 13px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,.04);
+
+  color:var(--muted);font-family:'Noto Sans Georgian',sans-serif;font-size:11px;font-weight:600;
+
+  cursor:pointer;transition:all .2s;white-space:nowrap}
+
+.hbtn:hover{background:rgba(212,160,23,.1);color:var(--text)}
+
+.hbtn-g{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#07060e;border:none;font-weight:700}
+
+.hbtn-g:hover{filter:brightness(1.08)}
+
+ 
+
+/* SCREENS */
+
+.screen{display:none;min-height:calc(100vh - 57px);position:relative;z-index:1}
+
+.screen.active{display:block}
+
+ 
+
+/* === AUTH === */
+
+.auth-wrap{display:flex;align-items:center;justify-content:center;min-height:calc(100vh - 57px);padding:20px}
+
+.auth-card{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:36px;width:100%;max-width:400px;
+
+  box-shadow:0 20px 80px rgba(0,0,0,.6),0 0 50px var(--glow)}
+
+.auth-logo{font-family:'Cinzel Decorative',serif;font-size:20px;color:var(--gold2);text-align:center;margin-bottom:4px}
+
+.auth-sub{font-size:12px;color:var(--muted);text-align:center;margin-bottom:24px}
+
+.tabs{display:flex;border-radius:10px;overflow:hidden;border:1px solid var(--border);margin-bottom:22px}
+
+.tab-b{flex:1;padding:10px;border:none;background:transparent;color:var(--muted);font-family:'Noto Sans Georgian',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
+
+.tab-b.on{background:rgba(212,160,23,.12);color:var(--gold2)}
+
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+
+.field label{font-size:11px;color:var(--muted);letter-spacing:1px;text-transform:uppercase}
+
+.field input{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:10px;
+
+  padding:11px 14px;color:var(--text);font-family:'Noto Sans Georgian',sans-serif;font-size:14px;outline:none;width:100%;transition:border-color .2s}
+
+.field input:focus{border-color:rgba(212,160,23,.4)}
+
+.abtn{width:100%;padding:13px;border:none;border-radius:12px;
+
+  background:linear-gradient(135deg,var(--gold),var(--gold2));color:#07060e;
+
+  font-family:'Noto Sans Georgian',sans-serif;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px;transition:all .2s}
+
+.abtn:hover{filter:brightness(1.08)}
+
+.amsg{font-size:12px;color:#e05050;text-align:center;margin-top:8px;min-height:18px}
+
+ 
+
+/* === LOBBY === */
+
+.lobby-wrap{padding:22px 18px;max-width:1060px;margin:0 auto}
+
+.jp-bar{background:linear-gradient(135deg,var(--dark3),var(--panel));border:1px solid var(--border);
+
+  border-radius:18px;padding:22px 28px;margin-bottom:24px;text-align:center;position:relative;overflow:hidden}
+
+.jp-bar::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% -20%,rgba(212,160,23,.12),transparent 70%)}
+
+.jp-label{font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;position:relative}
+
+.jp-val{font-family:'Cinzel Decorative',serif;font-size:42px;font-weight:900;position:relative;
+
+  background:linear-gradient(90deg,var(--gold),var(--gold2),var(--gold3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+
+  filter:drop-shadow(0 0 20px rgba(212,160,23,.4));margin-top:4px}
+
+.games-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px;margin-bottom:22px}
+
+.game-card{background:var(--panel);border:1px solid var(--border);border-radius:18px;overflow:hidden;cursor:pointer;transition:all .3s}
+
+.game-card:hover{transform:translateY(-4px);border-color:rgba(212,160,23,.35);box-shadow:0 20px 50px rgba(0,0,0,.5),0 0 30px var(--glow)}
+
+.game-thumb{height:100px;display:flex;align-items:center;justify-content:center;font-size:40px;gap:6px;
+
+  background:linear-gradient(180deg,var(--dark3),var(--panel));border-bottom:1px solid var(--border)}
+
+.game-info{padding:14px}
+
+.game-badge{display:inline-block;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;
+
+  padding:3px 8px;border-radius:5px;background:rgba(155,109,255,.15);color:#c49bff;margin-bottom:6px}
+
+.game-name{font-family:'Cinzel',serif;font-size:16px;font-weight:700;color:var(--gold2);margin-bottom:4px}
+
+.game-desc{font-size:11px;color:var(--muted);line-height:1.5}
+
+.lobby-btns{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
+
+.lbtn{padding:10px 20px;border-radius:10px;border:1px solid var(--border);background:rgba(212,160,23,.07);
+
+  color:var(--gold);font-family:'Noto Sans Georgian',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+
+.lbtn:hover{background:rgba(212,160,23,.15)}
+
+.hist-title{font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;font-family:'Cinzel',serif;margin-bottom:8px}
+
+.hist-item{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:12px}
+
+.hist-item .hw{color:var(--gold2)}.hist-item .hl{color:var(--muted)}
+
+ 
+
+/* === SLOT SCREEN === */
+
+.slot-wrap{display:flex;flex-direction:column;height:calc(100vh - 57px);max-width:540px;margin:0 auto;padding:6px 8px}
+
+.jp-row{display:flex;gap:4px;flex-shrink:0;padding:0 0 4px}
+
+.jpb{flex:1;text-align:center;padding:4px;border-radius:7px;border:1px solid;position:relative;overflow:hidden}
+
+.jpb::before{content:'';position:absolute;inset:0;opacity:.08;background:currentColor}
+
+.jpb.mini{border-color:#888;color:#ccc}
+
+.jpb.major{border-color:#cd7f32;color:#e0a060}
+
+.jpb.mega{border-color:var(--gold);color:var(--gold)}
+
+.jpb.grand{border-color:#ff44aa;color:#ff88cc;animation:gp 2s ease-in-out infinite}
+
+@keyframes gp{0%,100%{box-shadow:0 0 4px #ff44aa22}50%{box-shadow:0 0 12px #ff44aa66}}
+
+.jbl{font-family:'Cinzel',serif;font-size:7px;letter-spacing:1px;display:block;opacity:.8}
+
+.jba{font-family:'Cinzel Decorative',serif;font-size:10px;font-weight:700;display:block}
+
+.reel-area{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:2px}
+
+#slotCanvas{border-radius:14px;border:2px solid rgba(212,160,23,.22);
+
+  box-shadow:inset 0 0 40px rgba(0,0,0,.8),0 0 28px var(--glow);background:#030100;display:block}
+
+.win-bar{height:32px;display:flex;align-items:center;justify-content:center;
+
+  font-family:'Cinzel Decorative',serif;font-size:17px;color:var(--gold);
+
+  text-shadow:0 0 16px var(--gold);opacity:0;transition:opacity .2s;flex-shrink:0}
+
+.win-bar.on{opacity:1;animation:wpop .4s cubic-bezier(.175,.885,.32,1.275)}
+
+@keyframes wpop{0%{transform:scale(.5)}100%{transform:scale(1)}}
+
+.info-row{display:flex;gap:5px;flex-shrink:0;padding:2px 0}
+
+.ibox{flex:1;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:10px;padding:7px 4px;text-align:center}
+
+.ilab{font-family:'Cinzel',serif;font-size:7px;color:var(--gold);text-transform:uppercase;letter-spacing:1px;display:block;margin-bottom:2px}
+
+.ival{font-family:'Cinzel Decorative',serif;font-size:13px;color:var(--gold2);display:block}
+
+.bet-row{display:flex;align-items:center;gap:5px;flex-shrink:0;padding:3px 0}
+
+.barr{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);background:rgba(212,160,23,.06);
+
+  color:var(--gold);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+
+.barr:active{transform:scale(.9)}
+
+.bet-disp{flex:1;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:10px;
+
+  text-align:center;font-family:'Cinzel Decorative',serif;font-size:13px;color:var(--gold2);padding:8px 0}
+
+.spin-row{flex-shrink:0;padding:4px 0 8px}
+
+#spinBtn{width:100%;background:linear-gradient(150deg,#c8a800,#d4b000,#a8860c);border:none;border-radius:13px;
+
+  font-family:'Cinzel Decorative',serif;font-size:19px;font-weight:900;color:#0b0600;cursor:pointer;padding:14px 0;
+
+  box-shadow:0 4px 20px rgba(212,160,23,.3),inset 0 2px 5px rgba(255,255,255,.35);transition:all .1s;letter-spacing:1px}
+
+#spinBtn:active{transform:translateY(3px)}
+
+#spinBtn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+ 
+
+/* === ROULETTE SCREEN === */
+
+.rou-screen-inner{display:flex;gap:14px;padding:14px;height:calc(100vh - 57px);overflow:hidden}
+
+.rou-left{display:flex;flex-direction:column;align-items:center;flex-shrink:0;gap:8px}
+
+.rou-right{flex:1;display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-width:0}
+
+#rouCanvas{border-radius:50%;border:3px solid rgba(212,160,23,.5);
+
+  box-shadow:0 0 40px rgba(212,160,23,.2),inset 0 0 30px rgba(0,0,0,.5);display:block}
+
+.rou-result-wrap{min-height:56px;display:flex;align-items:center;justify-content:center;gap:12px}
+
+.rou-num{font-family:'Cinzel Decorative',serif;font-size:24px;font-weight:900;
+
+  width:52px;height:52px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
+
+  border:3px solid var(--border);transition:all .4s}
+
+.rou-num.red-n{background:rgba(204,34,0,.3);border-color:#cc2200;color:#ff6644}
+
+.rou-num.blk-n{background:rgba(20,20,20,.6);border-color:#555;color:#ccc}
+
+.rou-num.grn-n{background:rgba(0,100,0,.35);border-color:#006600;color:#00e676}
+
+.chip-row{display:flex;gap:6px;flex-wrap:wrap}
+
+.chip{width:44px;height:44px;border-radius:50%;border:3px solid;
+
+  display:flex;align-items:center;justify-content:center;
+
+  font-family:'Cinzel',serif;font-size:11px;font-weight:700;cursor:pointer;transition:all .2s}
+
+.chip:hover{transform:scale(1.1)}
+
+.chip.sel{transform:scale(1.18);box-shadow:0 0 16px currentColor}
+
+.c1{background:#12301a;border-color:#3dcf8e;color:#3dcf8e}
+
+.c5{background:#12123a;border-color:#4488ff;color:#4488ff}
+
+.c10{background:#30100a;border-color:#ff5544;color:#ff5544}
+
+.c25{background:#22103a;border-color:#cc44ff;color:#cc44ff}
+
+.c100{background:#2a1c00;border-color:var(--gold2);color:var(--gold2)}
+
+.sec-title{font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;font-family:'Cinzel',serif}
+
+/* BET TABLE */
+
+.bet-table{background:#080e08;border:2px solid #1a3a1a;border-radius:12px;overflow:hidden;user-select:none}
+
+.bt-row{display:flex}
+
+.bt-cell{flex:1;border:1px solid rgba(255,255,255,.08);padding:5px 1px;
+
+  text-align:center;font-family:'Cinzel',serif;font-size:11px;font-weight:700;
+
+  cursor:pointer;transition:filter .15s;position:relative;
+
+  min-height:28px;display:flex;align-items:center;justify-content:center;min-width:0}
+
+.bt-cell:hover{filter:brightness(1.4)}
+
+.bt-cell:active{filter:brightness(1.8)}
+
+.rc{background:rgba(160,28,8,.75);color:#fff}
+
+.bc{background:rgba(18,18,18,.9);color:#ddd}
+
+.gc{background:rgba(0,80,0,.8);color:#00e676}
+
+.oc{background:rgba(28,20,8,.85);color:var(--gold);font-size:10px}
+
+.cc{background:rgba(35,25,0,.85);color:var(--gold2);font-size:10px}
+
+.bt-chip{position:absolute;top:1px;right:1px;width:16px;height:16px;border-radius:50%;
+
+  background:var(--gold2);color:#000;font-size:7px;font-weight:900;
+
+  display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;z-index:2}
+
+.rou-btns{display:flex;gap:8px;flex-wrap:wrap}
+
+.rbtn{padding:9px 14px;border-radius:9px;border:1px solid var(--border);background:rgba(212,160,23,.07);
+
+  color:var(--gold);font-family:'Noto Sans Georgian',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+
+.rbtn:hover{background:rgba(212,160,23,.14)}
+
+.rbtn.rg{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#07060e;border:none;font-weight:700}
+
+.rbtn.rg:hover{filter:brightness(1.08)}
+
+.rbtn:disabled{opacity:.5;cursor:not-allowed}
+
+.rou-win-msg{font-family:'Cinzel Decorative',serif;font-size:14px;color:var(--gold);text-shadow:0 0 12px var(--gold);text-align:center;min-height:20px;transition:color .3s}
+
+ 
+
+@media(max-width:620px){
+
+  .rou-screen-inner{flex-direction:column;overflow-y:auto;height:auto;padding:10px}
+
+  .rou-left{width:100%}
+
+  .mega-t{font-size:36px}
+
+  .mega-a{font-size:26px}
+
+}
+
+</style>
+
 </head>
+ 
+
 <body>
-  <div class="app">
-    <header>
-      <div class="logo">რუსთავი კაზინო</div>
-      <div id="headerActions"></div>
-    </header>
 
-    <div class="toast" id="toast"></div>
+ 
 
-    <section class="panel screen active" id="authScreen">
-      <h2>შესვლა ან რეგისტრაცია</h2>
-      <div class="grid grid-2" style="margin-top:18px">
-        <div class="card">
-          <h3>შესვლა</h3>
-          <div class="field"><label>იმეილი</label><input id="loginEmail" type="email" placeholder="imi@example.com"></div>
-          <div class="field"><label>პაროლი</label><input id="loginPassword" type="password" placeholder="••••••••"></div>
-          <button class="btn" onclick="loginUser()">შესვლა</button>
-        </div>
-        <div class="card">
-          <h3>რეგისტრაცია</h3>
-          <div class="field"><label>მეილი</label><input id="registerEmail" type="email" placeholder="imi@example.com"></div>
-          <div class="field"><label>პაროლი</label><input id="registerPassword" type="password" placeholder="••••••••"></div>
-          <div class="field"><label>სახელი</label><input id="registerName" type="text" placeholder="თქვენი სახელი"></div>
-          <button class="btn" onclick="registerUser()">რეგისტრაცია</button>
-        </div>
-      </div>
-    </section>
+<canvas id="pCanvas"></canvas>
 
-    <section class="panel screen" id="lobbyScreen">
-      <div class="grid grid-2" style="align-items:center;gap:20px">
-        <div>
-          <div class="small">მომხმარებელი</div>
-          <h2 id="playerName">...</h2>
-          <div class="small">ბალანსი</div>
-          <h2 id="playerBalance">₾0.00</h2>
-        </div>
-        <div style="display:flex;justify-content:flex-end;gap:12px;flex-wrap:wrap">
-          <button class="btn" onclick="showScreen('slotScreen')">სლოტი</button>
-          <button class="btn" onclick="showScreen('rouletteScreen')">რულეტი</button>
-          <button class="btn" onclick="showScreen('pokerLobbyScreen')">პოკერი</button>
-          <button class="btn" style="background:#333;color:#fff" onclick="logoutUser()">გასვლა</button>
-        </div>
-      </div>
+ 
 
-      <div class="grid grid-3" style="margin-top:20px">
-        <div class="card">
-          <h3>ლიდერბორდი</h3>
-          <ul id="leaderboardList" style="list-style:none;padding:0;margin:0;display:grid;gap:10px"></ul>
-        </div>
-        <div class="card">
-          <h3>პოკერის მაგიდები</h3>
-          <div id="pokerTables" class="list"></div>
-          <button class="btn" style="margin-top:14px" onclick="showScreen('pokerLobbyScreen')">დეტალურად ნახვა</button>
-        </div>
-        <div class="card">
-          <h3>ინფორმაცია</h3>
-          <p class="small">ამ აპლიკაციის ყველაფერი იყენებს Firebase Realtime DB-ს, ამიტომ GitHub Pages-იდან პირდაპირ მუშაობს.</p>
-        </div>
-      </div>
-    </section>
+<!-- MEGA OVERLAY -->
 
-    <section class="panel screen" id="slotScreen">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
-        <div><h3>სლოტი</h3></div>
-        <button class="btn" style="background:#333;color:#fff" onclick="showScreen('lobbyScreen')">ლობი</button>
-      </div>
-      <div class="card">
-        <div class="field"><label>ფსონი</label><select id="slotBet"><option value="1">₾1</option><option value="2">₾2</option><option value="5">₾5</option><option value="10">₾10</option></select></div>
-        <div class="field"><label>სიმბოლოები</label><div id="slotSymbols" style="font-size:40px;letter-spacing:12px;text-align:center">🍒 🍋 🍊</div></div>
-        <button class="btn" onclick="playSlot()">თამაში</button>
-        <div class="small" id="slotResult">ეს თამაში იყენებს Firebase ტრანზაქციას ბალანსის დასარედაქტირებლად.</div>
-      </div>
-    </section>
+<div class="mega-ov" id="megaOv">
 
-    <section class="panel screen" id="rouletteScreen">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
-        <div><h3>რულეტი</h3></div>
-        <button class="btn" style="background:#333;color:#fff" onclick="showScreen('lobbyScreen')">ლობი</button>
-      </div>
-      <div class="card">
-        <div class="field"><label>ფსონი</label><select id="rouletteBet"><option value="1">₾1</option><option value="2">₾2</option><option value="5">₾5</option><option value="10">₾10</option></select></div>
-        <div class="field"><label>ფერი</label><select id="rouletteColor"><option value="red">წითელი</option><option value="black">შავი</option></select></div>
-        <button class="btn" onclick="playRoulette()">თამაში</button>
-        <div class="small" id="rouletteResult">ბურთი აირჩევა 0–36-ის დიაპაზონში.</div>
-      </div>
-    </section>
+  <div class="mega-t" id="megaT">გამარჯვება!</div>
 
-    <section class="panel screen" id="pokerLobbyScreen">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
-        <div><h3>პოკერის ლობი</h3></div>
-        <button class="btn" style="background:#333;color:#fff" onclick="showScreen('lobbyScreen')">ლობი</button>
-      </div>
-      <div class="grid grid-2">
-        <div class="card">
-          <h4>მაგიდები</h4>
-          <div id="pokerTableList" class="list"></div>
-        </div>
-        <div class="card">
-          <h4>ახალი მაგიდა</h4>
-          <div class="field"><label>დასახელება</label><input id="newTableName" placeholder="High Stakes"></div>
-          <div class="field"><label>პატარა ბლინდ</label><input id="newTableSmall" type="number" min="1" value="1"></div>
-          <div class="field"><label>დიდი ბლინდ</label><input id="newTableBig" type="number" min="2" value="2"></div>
-          <div class="field"><label>მაქსიმალური მოთამაშე</label><input id="newTableMax" type="number" min="2" max="6" value="6"></div>
-          <button class="btn" onclick="createTable()">შექმნა</button>
-        </div>
-      </div>
-    </section>
+  <div class="mega-a" id="megaA"></div>
 
-    <section class="panel screen" id="pokerTableScreen">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:18px">
-        <div><h3>პოკერის მაგიდა</h3></div>
-        <div style="display:flex;gap:12px;flex-wrap:wrap"><button class="btn" style="background:#333;color:#fff" onclick="leaveTable()">გასვლა</button><button class="btn" style="background:#333;color:#fff" onclick="showScreen('pokerLobbyScreen')">ლობს</button></div>
-      </div>
-      <div class="card" id="pokerTableInfo"></div>
-      <div class="card" id="pokerPlayersInfo"></div>
-    </section>
+  <button class="mega-close" onclick="closeMega()">გაგრძელება</button>
+
+</div>
+
+ 
+
+<!-- HEADER -->
+
+<header>
+
+  <div class="logo">რუსთავ სლოტ</div>
+
+  <div class="h-right" id="hRight">
+
+    <div class="bal-badge" id="balBadge" style="display:none">
+
+      <div><div class="bal-label">ბალანსი</div><div class="bal-val" id="balVal">0.00 ₾</div></div>
+
+    </div>
+
+    <button class="hbtn" id="btnBack" style="display:none" onclick="goLobby()">← თამაშები</button>
+
+    <button class="hbtn" id="btnOut" style="display:none" onclick="doLogout()">გასვლა</button>
+
   </div>
 
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBEQnl0YOxLEchYsdDmbrqKGFvALSyvLfA",
-      authDomain: "slotmachine-a9ff4.firebaseapp.com",
-      databaseURL: "https://slotmachine-a9ff4-default-rtdb.europe-west1.firebasedatabase.app",
-      projectId: "slotmachine-a9ff4",
-      storageBucket: "slotmachine-a9ff4.firebasestorage.app",
-      messagingSenderId: "1053857390923",
-      appId: "1:1053857390923:web:5d37a845dd4f370cc948ce"
-    };
+</header>
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.database();
+ 
 
-    let currentUserData = null;
-    let currentTableId = null;
-    let currentTableRef = null;
-    let currentUserRef = null;
-    let tablesListenerAttached = false;
+<!-- AUTH -->
 
-    const screens = document.querySelectorAll('.screen');
-    const toast = document.getElementById('toast');
-    const headerActions = document.getElementById('headerActions');
+<div class="screen active" id="sAuth">
 
-    function formatCurrency(value) {
-      return `₾${Number(value || 0).toFixed(2)}`;
-    }
+  <div class="auth-wrap">
 
-    function showScreen(id) {
-      screens.forEach(screen => screen.classList.toggle('active', screen.id === id));
-      if (id === 'lobbyScreen' || id === 'pokerLobbyScreen') {
-        loadLeaderboard();
-      }
-    }
+    <div class="auth-card">
 
-    function showToast(text, type = 'success') {
-      toast.textContent = text;
-      toast.className = `toast show ${type}`;
-      clearTimeout(window.toastTimer);
-      window.toastTimer = setTimeout(() => toast.className = 'toast', 3000);
-    }
+      <div class="auth-logo">რუსთავ სლოტ</div>
 
-    function updateHeader() {
-      if (!currentUserData) {
-        headerActions.innerHTML = '';
-        return;
-      }
-      headerActions.innerHTML = `
-        <div style="text-align:right;min-width:220px">
-          <div class="small">მომხმარებელი</div>
-          <div style="font-weight:800">${currentUserData.name || currentUserData.email}</div>
-          <div class="small">${formatCurrency(currentUserData.balance)}</div>
+      <div class="auth-sub">პრემიუმ ქართული კაზინო — სათამაშო გამოცდილება</div>
+
+      <div class="tabs">
+
+        <button class="tab-b on" onclick="switchTab('login',this)">შესვლა</button>
+
+        <button class="tab-b" onclick="switchTab('reg',this)">რეგისტრაცია</button>
+
+      </div>
+
+      <div id="fLogin">
+
+        <div class="field"><label>მომხმარებელი</label><input id="lU" placeholder="შეიყვანე მომხმარებელი" autocomplete="username"/></div>
+
+        <div class="field"><label>პაროლი</label><input id="lP" type="password" placeholder="••••••••" autocomplete="current-password"/></div>
+
+        <button class="abtn" onclick="doLogin()">კაზინოში შესვლა</button>
+
+        <div class="amsg" id="lMsg"></div>
+
+      </div>
+
+      <div id="fReg" style="display:none">
+
+        <div class="field"><label>სახელი</label><input id="rN" placeholder="შენი სახელი"/></div>
+
+        <div class="field"><label>მომხმარებელი</label><input id="rU" placeholder="უნიკალური მომხმარებელი" autocomplete="username"/></div>
+
+        <div class="field"><label>პაროლი</label><input id="rP" type="password" placeholder="••••••••" autocomplete="new-password"/></div>
+
+        <button class="abtn" onclick="doReg()">ანგარიშის შექმნა</button>
+
+        <div class="amsg" id="rMsg"></div>
+
+      </div>
+
+      <div style="margin-top:16px;text-align:center;font-size:11px;color:var(--muted)">🎁 საწყისი ბონუსი: 500 ₾ | Space = Spin</div>
+
+    </div>
+
+  </div>
+
+</div>
+
+ 
+
+<!-- LOBBY -->
+
+<div class="screen" id="sLobby">
+
+  <div class="lobby-wrap">
+
+    <div class="jp-bar">
+
+      <div class="jp-label">პროგრესული ჯეკპოტი</div>
+
+      <div class="jp-val" id="jpLobby">0.00 ₾</div>
+
+    </div>
+
+    <div class="games-grid">
+
+      <div class="game-card" onclick="goSlot('burning')">
+
+        <div class="game-thumb">🍒 7 🔔</div>
+
+        <div class="game-info">
+
+          <div class="game-badge">კლასიკური</div>
+
+          <div class="game-name">Burning Hot Deluxe</div>
+
+          <div class="game-desc">EGT სტილი: ხილის სიმბოლოები, ველდები, სქატერები. ანიმაციური ბობინები.</div>
+
         </div>
-      `;
+
+      </div>
+
+      <div class="game-card" onclick="goSlot('mega')">
+
+        <div class="game-thumb">💎 ⭐ 🎰</div>
+
+        <div class="game-info">
+
+          <div class="game-badge">მაღალი ვარიანტი</div>
+
+          <div class="game-name">Mega Fortune Slots</div>
+
+          <div class="game-desc">სტაკდ ველდები, გაზრდილი ჯეკპოტი. მეგა მოგებები ნებისმიერ სპინზე.</div>
+
+        </div>
+
+      </div>
+
+      <div class="game-card" onclick="goRoulette()">
+
+        <div class="game-thumb" style="font-size:52px">🎡</div>
+
+        <div class="game-info">
+
+          <div class="game-badge" style="background:rgba(61,207,142,.12);color:#3dcf8e">ევროპული</div>
+
+          <div class="game-name">ევროპული რულეტკა</div>
+
+          <div class="game-desc">37 ნომერი, სრული სათამაშო მაგიდა. პირდაპირი, ათეულები, ფერი, ეშხი/ლუწი.</div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="lobby-btns">
+
+      <button class="lbtn" onclick="addBalance(100)">+ 100 ₾ ჩიფსი</button>
+
+      <button class="lbtn" onclick="addBalance(500)">+ 500 ₾ ჩიფსი</button>
+
+      <button class="lbtn" onclick="doLogout()">გასვლა</button>
+
+    </div>
+
+    <div class="hist-title">ბოლო თამაშები</div>
+    <div id="histList"></div>
+
+    <div class="hist-title" style="margin-top:20px; color:var(--gold2)">🏆 TOP მოთამაშეები</div>
+    <div id="leaderboardList" style="background: rgba(212,160,23,0.05); border-radius: 12px; padding: 5px; border: 1px solid var(--border); margin-bottom: 20px;">
+        <div style="text-align:center; padding:10px; font-size:12px; color:var(--muted)">იტვირთება...</div>
+    </div>
+
+    <div class="hist-title" style="color:var(--gold2)">💬 გლობალური ჩათი</div>
+    <div id="chatBox" style="background: var(--panelb); border-radius: 12px; border: 1px solid var(--border); display: flex; flex-direction: column; height: 250px; margin-top: 10px;">
+        <div id="chatMessages" style="flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; display: flex; flex-direction: column; gap: 6px; color: #eee;"></div>
+        <div style="padding: 8px; border-top: 1px solid var(--border); display: flex; gap: 5px;">
+            <input id="chatInput" placeholder="დაწერე რამე..." style="flex: 1; background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; color: #fff; padding: 6px 10px; outline: none;">
+            <button type="button" onclick="sendChatMessage()" style="background: var(--gold); border: none; border-radius: 6px; padding: 0 15px; cursor: pointer; color: #000; font-weight: bold;">></button>
+        </div>
+    </div>
+  </div> </div> ```
+
+
+
+
+<div class="screen" id="sSlot">
+
+  <div class="slot-wrap">
+
+    <div class="jp-row">
+
+      <div class="jpb mini"><span class="jbl">MINI</span><span class="jba">₾15</span></div>
+
+      <div class="jpb major"><span class="jbl">MAJOR</span><span class="jba">₾60</span></div>
+
+      <div class="jpb mega"><span class="jbl">MEGA</span><span class="jba">₾150</span></div>
+
+      <div class="jpb grand"><span class="jbl">GRAND</span><span class="jba" id="grandJp">₾500</span></div>
+
+    </div>
+
+    <div class="reel-area" id="reelArea"><canvas id="slotCanvas"></canvas></div>
+
+    <div class="win-bar" id="winBar"></div>
+
+    <div class="info-row">
+
+      <div class="ibox"><span class="ilab">ბალანსი</span><span class="ival" id="sBal" style="color:#3dcf8e">₾100</span></div>
+
+      <div class="ibox"><span class="ilab">მოგება</span><span class="ival" id="sWin">₾0.00</span></div>
+
+      <div class="ibox"><span class="ilab">ფსონი</span><span class="ival" id="sBet">₾1.00</span></div>
+
+    </div>
+
+    <div class="bet-row">
+
+      <button class="barr" onclick="chBet(-1)">−</button>
+
+      <div class="bet-disp">სულ: <span id="betAmt">₾1.00</span></div>
+
+      <button class="barr" onclick="chBet(1)">+</button>
+
+    </div>
+
+    <div class="spin-row">
+
+      <button id="spinBtn" onclick="doSlotSpin()">🎰 დაატრიალე</button>
+
+    </div>
+
+  </div>
+
+</div>
+
+ 
+
+<!-- ROULETTE -->
+
+<div class="screen" id="sRou">
+
+  <div class="rou-screen-inner">
+
+    <div class="rou-left">
+
+      <canvas id="rouCanvas"></canvas>
+
+      <div class="rou-result-wrap">
+
+        <div id="rouNumEl" class="rou-num" style="display:none"></div>
+
+        <div class="rou-win-msg" id="rouWinMsg"></div>
+
+      </div>
+
+    </div>
+
+    <div class="rou-right">
+
+      <div>
+
+        <div class="sec-title" style="margin-bottom:7px">ჩიფსის მნიშვნელობა</div>
+
+        <div class="chip-row">
+
+          <div class="chip c1 sel" onclick="selChip(1,this)">1</div>
+
+          <div class="chip c5" onclick="selChip(5,this)">5</div>
+
+          <div class="chip c10" onclick="selChip(10,this)">10</div>
+
+          <div class="chip c25" onclick="selChip(25,this)">25</div>
+
+          <div class="chip c100" onclick="selChip(100,this)">100</div>
+
+        </div>
+
+      </div>
+
+      <div style="display:flex;gap:8px">
+
+        <div class="ibox" style="flex:1"><span class="ilab">ჯამური ფსონი</span><span class="ival" id="rouTotalBet">₾0.00</span></div>
+
+        <div class="ibox" style="flex:1"><span class="ilab">ბოლო მოგება</span><span class="ival" id="rouLastWin">₾0.00</span></div>
+
+      </div>
+
+      <div>
+
+        <div class="sec-title" style="margin-bottom:7px">სათამაშო მაგიდა</div>
+
+        <div class="bet-table" id="betTable"></div>
+
+      </div>
+
+      <div class="rou-btns">
+
+        <button class="rbtn rg" id="rouSpinBtn" onclick="doRouSpin()">🎡 ატრიალე</button>
+
+        <button class="rbtn" onclick="clearBets()">გასუფთავება</button>
+
+        <button class="rbtn" onclick="reBet()">↻ ხელახლა</button>
+
+      </div>
+
+      <div>
+
+        <div class="sec-title" style="margin-bottom:6px">ისტორია</div>
+
+        <div id="rouHist" style="max-height:110px;overflow-y:auto"></div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+ 
+
+<script>
+
+'use strict';
+
+ 
+
+/* =====================================================
+
+   STORAGE & CORE
+
+===================================================== */
+
+const SK={U:'ac_u3',C:'ac_c3',B:'ac_b3',J:'ac_j3',H:'ac_h3'};
+
+const ld=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}};
+
+const sv=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+
+const getUsers=()=>ld(SK.U,{});
+
+const getCur=()=>localStorage.getItem(SK.C);
+
+const setCur=u=>u?localStorage.setItem(SK.C,u):localStorage.removeItem(SK.C);
+
+const getJack=()=>Number(ld(SK.J,800));
+
+const setJack=v=>sv(SK.J,Math.max(0,Math.round(v*100)/100));
+
+const getHist=()=>ld(SK.H,[]);
+
+const addHist=item=>{const h=getHist();h.unshift(item);if(h.length>60)h.pop();sv(SK.H,h)};
+
+
+function setBal(v) {
+    const user = firebase.auth().currentUser; // ვიღებთ ავტორიზებულ მომხმარებელს
+    if (!user) {
+        console.warn("მომხმარებელი არ არის ავტორიზებული!");
+        return;
     }
 
-    function refreshUserUI() {
-      if (!currentUserData) return;
-      document.getElementById('playerName').textContent = currentUserData.name || currentUserData.email;
-      document.getElementById('playerBalance').textContent = formatCurrency(currentUserData.balance);
-      updateHeader();
-    }
+    const b = ld(SK.B, {});
+    const balance = Math.round(v * 100) / 100;
+    b[user.email] = balance; // ვინახავთ ლოკალურად
+    sv(SK.B, b);
 
-    async function registerUser() {
-      const email = document.getElementById('registerEmail').value.trim();
-      const password = document.getElementById('registerPassword').value;
-      const name = document.getElementById('registerName').value.trim() || 'Player';
-      if (!email || !password) { showToast('შეავსეთ იმეილი და პაროლი', 'error'); return; }
-      try {
-        const cred = await auth.createUserWithEmailAndPassword(email, password);
-        await db.ref(`players/${cred.user.uid}`).set({
-          email,
-          name,
-          balance: 100,
-          createdAt: Date.now()
-        });
-        showToast('რეგისტრაცია დასრულდა');
-      } catch (error) {
-        showToast(error.message || 'რეგისტრაცია ვერ მოხერხდა', 'error');
-      }
-    }
-
-    async function loginUser() {
-      const email = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      if (!email || !password) { showToast('შეავსეთ იმეილი და პაროლი', 'error'); return; }
-      try {
-        await auth.signInWithEmailAndPassword(email, password);
-        showToast('შესვლა წარმატებულია');
-      } catch (error) {
-        showToast(error.message || 'შესვლა ვერ მოხერხდა', 'error');
-      }
-    }
-
-    async function logoutUser() {
-      await auth.signOut();
-      if (currentUserRef) currentUserRef.off();
-      if (currentTableRef) currentTableRef.off();
-      currentUserRef = null;
-      currentTableRef = null;
-      currentUserData = null;
-      currentTableId = null;
-      showScreen('authScreen');
-    }
-
-    function ensurePlayerExists(user) {
-      const playerRef = db.ref(`players/${user.uid}`);
-      playerRef.once('value').then(snapshot => {
-        if (!snapshot.exists()) {
-          playerRef.set({
-            email: user.email || '',
-            name: user.displayName || 'Player',
-            balance: 100,
-            createdAt: Date.now()
-          });
-        }
-      });
-    }
-
-    function attachUserListener(uid) {
-      if (currentUserRef) currentUserRef.off();
-      currentUserRef = db.ref(`players/${uid}`);
-      currentUserRef.on('value', snapshot => {
-        currentUserData = snapshot.val() || {};
-        refreshUserUI();
-      });
-    }
-
-    function attachTablesListener() {
-      if (tablesListenerAttached) return;
-      tablesListenerAttached = true;
-      db.ref('poker/tables').on('value', snapshot => {
-        const data = snapshot.val() || {};
-        const list = document.getElementById('pokerTableList');
-        const overview = document.getElementById('pokerTables');
-        const rows = Object.entries(data).map(([id, table]) => {
-          const count = Object.keys(table.players || {}).length;
-          return `<div class="list-item" onclick="joinTable('${id}')"><div style="display:flex;justify-content:space-between;align-items:center"><strong>${table.name}</strong><span class="status">${table.status}</span></div><div class="small">${count}/${table.maxPlayers} მოთამაშე • პოტი ${formatCurrency(table.pot)}</div></div>`;
-        });
-        list.innerHTML = rows.join('') || '<div style="color:var(--muted)">მომავალი მაგიდა არ არის</div>';
-        overview.innerHTML = rows.join('') || '<div style="color:var(--muted)">მომავალი მაგიდა არ არის</div>';
-      });
-    }
-
-    function loadLeaderboard() {
-      db.ref('players').orderByChild('balance').limitToLast(10).once('value').then(snapshot => {
-        const list = document.getElementById('leaderboardList');
-        const players = [];
-        snapshot.forEach(child => players.push(child.val()));
-        players.reverse();
-        list.innerHTML = players.map(player => `<li style="display:flex;justify-content:space-between;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04)"><span>${player.name || player.email}</span><strong>${formatCurrency(player.balance)}</strong></li>`).join('') || '<li style="color:var(--muted)">არ არის მონაცემები</li>';
-      });
-    }
-
-    async function createTable() {
-      if (!currentUserData || !auth.currentUser) return;
-      const name = document.getElementById('newTableName').value.trim() || 'High Stakes';
-      const smallBlind = Number(document.getElementById('newTableSmall').value) || 1;
-      const bigBlind = Number(document.getElementById('newTableBig').value) || 2;
-      const maxPlayers = Math.max(2, Math.min(6, Number(document.getElementById('newTableMax').value) || 6));
-      const id = `table_${Date.now()}`;
-      const table = {
-        id,
-        name,
-        creator: auth.currentUser.uid,
-        createdAt: Date.now(),
-        smallBlind,
-        bigBlind,
-        maxPlayers,
-        pot: 0,
-        status: 'waiting',
-        players: {}
-      };
-      await db.ref(`poker/tables/${id}`).set(table);
-      showToast('მაგიდა შექმნილია');
-      joinTable(id);
-    }
-
-    async function joinTable(tableId) {
-      if (!currentUserData || !auth.currentUser) return;
-      if (currentUserData.balance <= 0) { showToast('ბალანსი უნდა იყოს მეტი 0', 'error'); return; }
-      currentTableId = tableId;
-      const playerData = {
-        uid: auth.currentUser.uid,
-        name: currentUserData.name || currentUserData.email,
-        balance: Number(currentUserData.balance || 0),
-        bet: 0,
-        folded: false,
-        joinedAt: Date.now()
-      };
-      await db.ref(`poker/tables/${tableId}/players/${auth.currentUser.uid}`).set(playerData);
-      if (currentTableRef) currentTableRef.off();
-      currentTableRef = db.ref(`poker/tables/${tableId}`);
-      currentTableRef.on('value', snapshot => {
-        const table = snapshot.val();
-        if (!table) { leaveTable(); return; }
-        updatePokerTable(table);
-      });
-      showScreen('pokerTableScreen');
-    }
-
-    async function leaveTable() {
-      if (!currentTableId || !auth.currentUser) return;
-      await db.ref(`poker/tables/${currentTableId}/players/${auth.currentUser.uid}`).remove();
-      if (currentTableRef) currentTableRef.off();
-      currentTableRef = null;
-      currentTableId = null;
-      showScreen('pokerLobbyScreen');
-    }
-
-    function updatePokerTable(table) {
-      const info = document.getElementById('pokerTableInfo');
-      const players = Object.values(table.players || {});
-      info.innerHTML = `
-        <div class="small">მაგიდა: ${table.name}</div>
-        <div class="small">სტატუსი: ${table.status}</div>
-        <div class="small">პოტი: ${formatCurrency(table.pot)}</div>
-        <div class="small">ბლინდები: ${formatCurrency(table.smallBlind)}/${formatCurrency(table.bigBlind)}</div>
-      `;
-      document.getElementById('pokerPlayersInfo').innerHTML = `
-        <h4>მოთამაშეები</h4>
-        ${players.map(player => `<div style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08)"><strong>${player.name}</strong> • ${formatCurrency(player.balance)} ${player.uid === auth.currentUser.uid ? '(თქვენ)' : ''}</div>`).join('')}
-      `;
-    }
-
-    async function playSlot() {
-      const bet = Number(document.getElementById('slotBet').value);
-      if (!validateBet(bet)) return;
-      const symbols = [getSlotSymbol(), getSlotSymbol(), getSlotSymbol()];
-      document.getElementById('slotSymbols').textContent = symbols.join(' ');
-      const win = calculateSlotWin(symbols, bet);
-      try {
-        await updateBalance(-bet);
-        if (win > 0) {
-          await updateBalance(win);
-          showToast(`🎉 გაიმარჯვე! +${formatCurrency(win)}`);
-        } else {
-          showToast('წააგე, სცადე ისევ.');
-        }
-        document.getElementById('slotResult').textContent = win > 0 ? `გამარჯვება ${formatCurrency(win)}` : 'წააგე';
-      } catch (error) {
-        showToast('არ არის საკმარისი ბალანსი', 'error');
-      }
-    }
-
-    async function playRoulette() {
-      const bet = Number(document.getElementById('rouletteBet').value);
-      const choice = document.getElementById('rouletteColor').value;
-      if (!validateBet(bet)) return;
-      const number = Math.floor(Math.random() * 37);
-      const color = number === 0 ? 'green' : number % 2 === 0 ? 'black' : 'red';
-      try {
-        await updateBalance(-bet);
-        let win = 0;
-        if (choice === color) win = bet * 2;
-        document.getElementById('rouletteResult').textContent = `ნუმერი ${number} (${color})`;
-        if (win > 0) {
-          await updateBalance(win);
-          showToast(`🎉 გაიმარჯვე! +${formatCurrency(win)}`);
-        } else {
-          showToast('წააგე რულეტი', 'error');
-        }
-      } catch (error) {
-        showToast('არ არის საკმარისი ბალანსი', 'error');
-      }
-    }
-
-    function getSlotSymbol() {
-      const symbols = ['🍒','🍋','🔔','⭐','7️⃣','🍀'];
-      return symbols[Math.floor(Math.random() * symbols.length)];
-    }
-
-    function calculateSlotWin(symbols, bet) {
-      const [a, b, c] = symbols;
-      if (a === b && b === c) {
-        if (a === '7️⃣') return bet * 10;
-        if (a === '⭐') return bet * 5;
-        return bet * 3;
-      }
-      if (a === b || b === c || a === c) return bet * 1.5;
-      return 0;
-    }
-
-    function validateBet(amount) {
-      if (!currentUserData) { showToast('გთხოვთ შეხვიდეთ', 'error'); return false; }
-      if (amount <= 0) { showToast('ფსონი უნდა იყოს მეტი 0', 'error'); return false; }
-      if (currentUserData.balance < amount) { showToast('არ არის საკმარისი ბალანსი', 'error'); return false; }
-      return true;
-    }
-
-    function updateBalance(delta) {
-      return new Promise((resolve, reject) => {
-        const uid = auth.currentUser?.uid;
-        if (!uid) return reject(new Error('no-user'));
-        const ref = db.ref(`players/${uid}/balance`);
-        ref.transaction(current => {
-          const value = Number(current || 0);
-          if (value + delta < 0) return undefined;
-          return Number((value + delta).toFixed(2));
-        }, (error, committed, snapshot) => {
-          if (error) reject(error);
-          else if (!committed) reject(new Error('insufficient'));
-          else resolve(snapshot.val());
-        });
-      });
-    }
-
-    auth.onAuthStateChanged(user => {
-      if (user) {
-        attachUserListener(user.uid);
-        attachTablesListener();
-        ensurePlayerExists(user);
-        showScreen('lobbyScreen');
-      } else {
-        if (currentUserRef) currentUserRef.off();
-        currentUserRef = null;
-        currentUserData = null;
-        showScreen('authScreen');
-      }
+    // ვაგზავნით ბაზაში UID-ის გამოყენებით
+    db.ref('players/' + user.uid).update({
+        balance: balance,
+        lastUpdate: Date.now()
+    }).catch((error) => {
+        console.error("სინქრონიზაციის შეცდომა:", error);
     });
-  </script>
+
+    refreshBal();
+}
+function updateLeaderboard() {
+    const lbList = document.getElementById('leaderboardList');
+    if (!lbList) return;
+    
+    // დამცავი: თუ ბაზა ჯერ არ არის, არაფერი ქნა
+    if (!window.db) {
+        console.warn("ბაზა ჯერ არ არის მზად...");
+        return;
+    }
+
+    db.ref('players').orderByChild('balance').limitToLast(5).on('value', (snapshot) => {
+        let players = [];
+        snapshot.forEach((child) => {
+            players.push(child.val());
+        });
+
+        players.reverse();
+
+        lbList.innerHTML = players.map((p, index) => `
+            <div class="hist-item" style="padding: 10px; border-bottom: 1px solid rgba(212,160,23,0.1); display: flex; justify-content: space-between; align-items: center;">
+                <span>
+                    <strong style="color:var(--gold2)">#${index + 1}</strong> 
+                    <span style="margin-left:8px; color:#fff">${p.name || 'უცნობი'}</span>
+                </span>
+                <span style="color:var(--gold2); font-weight:bold;">${fmtM(p.balance || 0)}</span>
+            </div>
+        `).join('');
+    });
+}
+function fmtM(n){return Number(n).toFixed(2)+' ₾'}
+
+ 
+
+ 
+
+/* =====================================================
+
+   SCREENS & HEADER
+
+===================================================== */
+
+function showScreen(id){
+
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+
+  document.getElementById(id).classList.add('active');
+
+}
+
+function updateHeader(backVisible,outVisible){
+
+  const u=getCur();
+
+  document.getElementById('balBadge').style.display=u?'flex':'none';
+
+  document.getElementById('btnBack').style.display=backVisible?'block':'none';
+
+  document.getElementById('btnOut').style.display=outVisible?'block':'none';
+
+  refreshBal();
+
+}
+
+ 
+
+/* =====================================================
+
+   AUTH
+
+===================================================== */
+
+function switchTab(tab,el){
+
+  document.querySelectorAll('.tab-b').forEach(t=>t.classList.remove('on'));
+
+  el.classList.add('on');
+
+  document.getElementById('fLogin').style.display=tab==='login'?'block':'none';
+
+  document.getElementById('fReg').style.display=tab==='reg'?'block':'none';
+
+}
+
+function doLogin() {
+    const u = document.getElementById('lU').value.trim() + "@rustavi.com";
+    const p = document.getElementById('lP').value;
+    const msg = document.getElementById('lMsg');
+
+    firebase.auth().signInWithEmailAndPassword(u, p)
+        .catch(error => {
+            msg.textContent = "არასწორი მომხმარებელი ან პაროლი!";
+        });
+}
+
+function doReg() {
+    const n = document.getElementById('rN').value.trim();
+    const u = document.getElementById('rU').value.trim();
+    const p = document.getElementById('rP').value;
+    const msg = document.getElementById('rMsg');
+
+    if (!n || !u || p.length < 6) {
+        msg.textContent = "შეავსეთ ველები (პაროლი მინ. 6 სიმბოლო)";
+        return;
+    }
+
+    firebase.auth().createUserWithEmailAndPassword(u + "@rustavi.com", p)
+        .then((userCredential) => {
+            // წარმატებული რეგისტრაციისას ვქმნით მოთამაშის პროფილს ბაზაში
+            return db.ref('players/' + userCredential.user.uid).set({
+                name: n,
+                username: u,
+                balance: 500, // საწყისი ბონუსი
+                createdAt: Date.now()
+            });
+        })
+        .catch(error => {
+            msg.textContent = "შეცდომა: " + error.message;
+        });
+}
+
+function doLogout() {
+    firebase.auth().signOut().then(() => {
+        location.reload(); // საიტის გადატვირთვა სუფთა გასვლისთვის
+    });
+}
+
+ 
+
+/* =====================================================
+
+   LOBBY
+
+===================================================== */
+
+function goLobby(){
+  slotLoopActive=false;
+  rouLoopActive=false;
+  showScreen('sLobby');
+  updateHeader(false,true);
+  
+  const jpEl = document.getElementById('jpLobby');
+  if(jpEl) jpEl.textContent=fmtM(getJack());
+  
+  renderHist();
+  updateLeaderboard(); // რეიტინგის განახლება
+  initChat();          // ჩათის ჩართვა
+}
+// ჩათის ჭკვიანი გასუფთავება (შლის 2 წუთზე ძველ მესიჯებს)
+function autoClearChat() {
+    if (!window.db) return;
+
+    const chatRef = window.db.ref('chat');
+    const now = Date.now();
+    const twoMinutesAgo = now - (2 * 60 * 1000); // 2 წუთი მილიწამებში
+
+    // ვეძებთ მესიჯებს, რომელთა დროც ნაკლებია (უფრო ძველია) ვიდრე 2 წუთის წინანდელი დრო
+    chatRef.orderByChild('time').endAt(twoMinutesAgo).once('value', (snapshot) => {
+        const updates = {};
+        snapshot.forEach((child) => {
+            // ვამზადებთ წასაშლელ სიაში
+            updates[child.key] = null;
+        });
+
+        // ერთიანად ვშლით ყველა ძველ მესიჯს
+        chatRef.update(updates).then(() => {
+            if (Object.keys(updates).length > 0) {
+                console.log("🧹 ძველი მესიჯები წაიშალა.");
+            }
+        });
+    });
+}
+
+// ვრთავთ ტაიმერს, რომელიც ყოველ 2 წუთში შეამოწმებს ბაზას
+setInterval(autoClearChat, 120000);
+function addBalance(amt){
+
+  const u=getCur();if(!u)return;
+
+  setBal(u,getBal(u)+amt);
+
+  spawnCoins(innerWidth/2,80,30);playTone(880,.1,'sine',.06);
+
+}
+
+function renderHist(){
+
+  const el=document.getElementById('histList');
+
+  const h=getHist().slice(0,12);
+
+  if(!h.length){el.innerHTML='<div style="font-size:12px;color:var(--muted)">ჯერ არ გათამაშებულა</div>';return}
+
+  el.innerHTML=h.map(i=>`<div class="hist-item"><span>${i.game}</span><span class="${i.win>0?'hw':'hl'}">${i.win>0?'+':''}${fmtM(i.win)}</span></div>`).join('');
+
+}
+
+ 
+
+/* =====================================================
+
+   AUDIO ENGINE (WEB AUDIO SYNTH)
+
+===================================================== */
+
+let AC;
+
+function getAC(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();return AC}
+
+function playTone(freq,dur=.1,type='sine',vol=.06,delay=0){
+
+  try{
+
+    const ac=getAC();const o=ac.createOscillator();const g=ac.createGain();
+
+    o.type=type;o.frequency.value=freq;
+
+    g.gain.setValueAtTime(vol,ac.currentTime+delay);
+
+    g.gain.exponentialRampToValueAtTime(.001,ac.currentTime+delay+dur);
+
+    o.connect(g);g.connect(ac.destination);
+
+    o.start(ac.currentTime+delay);o.stop(ac.currentTime+delay+dur);
+
+  }catch(e){}
+
+}
+
+function sndSpin(){for(let i=0;i<5;i++)playTone(200+i*40,.07,'sawtooth',.03,i*.05)}
+
+function sndStop(i){playTone(500+i*90,.12,'triangle',.05,0);playTone(700+i*60,.07,'sine',.03,.06)}
+
+function sndWin(){[523,659,784,1047].forEach((f,i)=>playTone(f,.22,'sine',.06,i*.09))}
+
+function sndBig(){[523,659,784,1047,1319].forEach((f,i)=>playTone(f,.3,'sine',.07,i*.07))}
+
+function sndLose(){playTone(180,.18,'sawtooth',.05)}
+
+function sndTick(){playTone(260,.025,'sine',.025)}
+
+function sndChip(){playTone(700,.06,'sine',.05)}
+
+function sndBall(){playTone(1100,.04,'sine',.06)}
+
+function sndWheelTick(){playTone(350,.02,'triangle',.04)}
+
+ 
+
+/* =====================================================
+
+   PARTICLES
+
+===================================================== */
+
+const pC=document.getElementById('pCanvas');
+
+const pX=pC.getContext('2d');
+
+let pts=[];
+
+function resizePC(){pC.width=innerWidth;pC.height=innerHeight}
+
+window.addEventListener('resize',resizePC);resizePC();
+
+function spawnCoins(x,y,n=20){
+
+  for(let i=0;i<n;i++)pts.push({x,y,vx:(Math.random()-.5)*9,vy:-4-Math.random()*6,life:90+Math.random()*50,maxLife:140,coin:true});
+
+}
+
+function spawnParts(x,y,color,n=40){
+
+  for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,sp=2+Math.random()*7;pts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-2,life:70+Math.random()*60,maxLife:130,color,sz:3+Math.random()*5})}
+
+}
+
+(function animPts(){
+
+  pX.clearRect(0,0,pC.width,pC.height);
+
+  for(let i=pts.length-1;i>=0;i--){
+
+    const p=pts[i];p.x+=p.vx;p.y+=p.vy;p.vy+=.14;p.life--;
+
+    pX.globalAlpha=Math.max(0,p.life/p.maxLife);
+
+    if(p.coin){pX.fillStyle='#ffd700';pX.beginPath();pX.ellipse(p.x,p.y,5,3,p.life*.1,0,Math.PI*2);pX.fill()}
+
+    else{pX.fillStyle=p.color||'#ffd700';pX.beginPath();pX.arc(p.x,p.y,(p.sz||4)/2,0,Math.PI*2);pX.fill()}
+
+    if(p.life<=0)pts.splice(i,1);
+
+  }
+
+  pX.globalAlpha=1;requestAnimationFrame(animPts);
+
+})();
+
+ 
+
+/* MEGA */
+
+function showMega(title,amt){
+
+  document.getElementById('megaT').textContent=title;
+
+  document.getElementById('megaA').textContent=fmtM(amt);
+
+  document.getElementById('megaOv').classList.add('show');
+
+  for(let i=0;i<10;i++)setTimeout(()=>spawnCoins(Math.random()*innerWidth,Math.random()*innerHeight,30),i*130);
+
+  sndBig();
+
+}
+
+function closeMega(){document.getElementById('megaOv').classList.remove('show')}
+
+ 
+
+/* =====================================================
+
+   SLOT ENGINE (EGT CANVAS FALLING ANIMATION)
+
+===================================================== */
+
+const SS=[
+
+  {id:'cherry', e:'🍒',color:'#ff2244',w:18,pay:{3:5,  4:15, 5:40}},
+
+  {id:'lemon',  e:'🍋',color:'#ffdd00',w:16,pay:{3:5,  4:12, 5:35}},
+
+  {id:'orange', e:'🍊',color:'#ff8800',w:14,pay:{3:8,  4:20, 5:60}},
+
+  {id:'grape',  e:'🍇',color:'#9944ff',w:12,pay:{3:10, 4:30, 5:80}},
+
+  {id:'bell',   e:'🔔',color:'#ffcc00',w:10,pay:{3:15, 4:50, 5:150}},
+
+  {id:'bar',    e:'BAR',color:'#44aaff',w:7, pay:{3:20, 4:80, 5:250},txt:true},
+
+  {id:'seven',  e:'7',  color:'#ff1111',w:4, pay:{3:60, 4:200,5:1000},txt:true},
+
+  {id:'wild',   e:'⭐', color:'#ffd700',w:3, pay:{3:100,4:500,5:2000},isWild:true},
+
+  {id:'scat',   e:'💎', color:'#00e5ff',w:5, pay:{3:5,  4:20, 5:80}, isScat:true},
+
+];
+
+const SM={};SS.forEach(s=>SM[s.id]=s);
+
+const POOL=[];SS.forEach(s=>{for(let i=0;i<s.w;i++)POOL.push(s.id)});
+
+const rndSS=()=>POOL[Math.floor(Math.random()*POOL.length)];
+
+ 
+
+const NR=5,NROW=3,SLEN=60;
+
+let sCtx,CELL,GAP,CW,CH,STEP,FULL;
+
+let sReels=[],sSpinning=false,sBetIdx=3,sLastWin=0,sWinLines=[];
+
+const SBETS=[.5,1,2,5,10,20,50];
+
+let slotLoopActive=false,slotLastT=0;
+
+ 
+
+const LINES=[
+
+  [1,1,1,1,1],[0,0,0,0,0],[2,2,2,2,2],
+
+  [0,1,2,1,0],[2,1,0,1,2],[0,0,1,2,2],[2,2,1,0,0],
+
+  [1,0,1,2,1],[1,2,1,0,1]
+
+];
+
+ 
+
+function sizeSlot(){
+
+  const area=document.getElementById('reelArea');
+
+  const maxW=area.clientWidth-8,maxH=area.clientHeight-8;
+
+  CELL=Math.floor(Math.min(maxW/NR,maxH/NROW)*.93);
+
+  GAP=Math.max(Math.floor(CELL*.08),3);
+
+  STEP=CELL+GAP;CW=CELL*NR+GAP*(NR-1);CH=CELL*NROW+GAP*(NROW-1);
+
+  const dpr=window.devicePixelRatio||1;
+
+  const c=document.getElementById('slotCanvas');
+
+  c.width=CW*dpr;c.height=CH*dpr;c.style.width=CW+'px';c.style.height=CH+'px';
+
+  sCtx.setTransform(1,0,0,1,0,0);sCtx.scale(dpr,dpr);
+
+  FULL=SLEN*STEP;
+
+}
+
+ 
+
+function initSReels(){
+
+  sReels=Array.from({length:NR},()=>({
+
+    strip:Array.from({length:SLEN},rndSS),
+
+    offset:0,vel:0,phase:'idle',stopTime:0,target:0
+
+  }));
+
+}
+
+ 
+
+function drawSym(id, x, y, size, blur) {
+  // --- დაცვის ხაზი: თუ id არ არსებობს SM მასივში, ფუნქცია აქ გაჩერდება ---
+  if (!id || !SM[id]) return; 
+
+  const s = SM[id];
+  sCtx.save();
+
+  // cell bg
+  sCtx.fillStyle = '#0c0800';
+  sCtx.beginPath();
+  sCtx.roundRect(x, y, size, size, Math.max(5, size * .09));
+  sCtx.fill();
+
+  // glow border for specials
+  // აქაც დავამატე s-ის შემოწმება, რომ isWild-ზე არ "გაჭედოს"
+  if (s && s.isWild) {
+    sCtx.shadowColor = 'rgba(255,215,0,.6)';
+    sCtx.shadowBlur = 14;
+  } else if (s && s.isScat) {
+    sCtx.shadowColor = 'rgba(0,229,255,.5)';
+    sCtx.shadowBlur = 12;
+  } else if (blur === 0 && s) {
+    sCtx.shadowColor = s.color;
+    sCtx.shadowBlur = 8;
+  }
+
+  // border
+  sCtx.strokeStyle = s.isWild ? 'rgba(255,215,0,.45)' : s.isScat ? 'rgba(0,229,255,.4)' : 'rgba(255,255,255,.07)';
+  sCtx.lineWidth = 1.5;
+  sCtx.beginPath();
+  sCtx.roundRect(x + .75, y + .75, size - 1.5, size - 1.5, Math.max(5, size * .09));
+  sCtx.stroke();
+
+  // Symbol
+  if (s.txt) {
+    // Text symbols (7, BAR)
+    const fsize = s.id === 'seven' ? size * .5 : size * .28;
+    sCtx.font = `900 ${fsize}px Cinzel`;
+    sCtx.fillStyle = s.color;
+    sCtx.textAlign = 'center';
+    sCtx.textBaseline = 'middle';
+    sCtx.shadowColor = s.color;
+    sCtx.shadowBlur = blur === 0 ? 16 : 0;
+    sCtx.fillText(s.e, x + size / 2, y + size / 2);
+  } else {
+    // Emoji symbols
+    sCtx.font = `${size * .6}px serif`;
+    sCtx.textAlign = 'center';
+    sCtx.textBaseline = 'middle';
+    sCtx.shadowBlur = 0;
+    sCtx.fillText(s.e, x + size / 2, y + size / 2 + (size * .03));
+  }
+
+  // Wild overlay sparkle
+  if (s.isWild) {
+    sCtx.font = `${size * .18}px serif`;
+    sCtx.fillText('✨', x + size * .12, y + size * .18);
+    sCtx.fillText('✨', x + size * .72, y + size * .74);
+  }
+
+  sCtx.restore();
+}
+ 
+
+function drawWinLines(){
+  if (!sCtx) return; // დაამატე ეს ხაზი
+  sWinLines.forEach((line,idx)=>{
+    const cols=['#ff4444','#44aaff','#44ff88','#ffaa00','#ff44dd','#00e5ff','#88ff44','#ffaa88','#ff88ff'];
+    const col=cols[idx%cols.length];
+    sCtx.save();
+    sCtx.strokeStyle=col;sCtx.lineWidth=3;sCtx.shadowColor=col;sCtx.shadowBlur=18;sCtx.lineJoin='round';
+    sCtx.beginPath();
+    line.forEach((row,ci)=>{const x=ci*STEP+CELL/2,y=row*STEP+CELL/2;ci===0?sCtx.moveTo(x,y):sCtx.lineTo(x,y)});
+    sCtx.stroke();
+    line.forEach((row,ci)=>{
+      sCtx.strokeStyle=col;sCtx.lineWidth=2;sCtx.shadowBlur=22;
+      sCtx.beginPath();sCtx.roundRect(ci*STEP+1,row*STEP+1,CELL-2,CELL-2,7);sCtx.stroke();
+    });
+    sCtx.restore();
+  });
+}
+
+ 
+
+function slotLoop(ts){
+
+  if(!slotLoopActive)return;
+
+  slotLastT=ts;
+
+  let allIdle=true;
+
+  sReels.forEach((r,i)=>{
+
+    if(r.phase!=='idle'){
+
+      allIdle=false;
+
+      if(r.phase==='spin'){
+
+        const prev=r.offset;
+
+        r.vel=Math.min(r.vel+1.6,40);
+
+        r.offset=(r.offset+r.vel)%FULL;
+
+        if(i===0&&Math.floor(prev/STEP)!==Math.floor(r.offset/STEP))sndTick();
+
+        if(ts>r.stopTime){r.phase='stopping';r.target=(Math.ceil(r.offset/STEP)+3)*STEP;}
+
+      }else if(r.phase==='stopping'){
+
+        const dist=r.target-r.offset;
+
+        if(dist<=0.5){r.offset=r.target%FULL;r.vel=0;r.phase='idle';sndStop(i);}
+
+        else{r.vel=dist*.15;r.offset+=r.vel;}
+
+      }
+
+    }
+
+  });
+
+  // Draw
+
+  sCtx.clearRect(0,0,CW,CH);
+
+  sReels.forEach((r,col)=>{
+
+    const rx=col*STEP;
+
+    const si=Math.floor(r.offset/STEP);
+
+    const sub=r.offset%STEP;
+
+    for(let row=-1;row<=NROW;row++){
+
+      const idx=((SLEN-si+row)%SLEN+SLEN)%SLEN;
+
+      const ry=row*STEP+sub;
+
+      if(ry+CELL<-10||ry>CH+10)continue;
+
+      drawSym(r.strip[idx],rx,ry,CELL,r.phase!=='idle'?r.vel/5:0);
+
+    }
+
+  });
+
+  if(allIdle&&sWinLines.length>0)drawWinLines();
+
+  if(sSpinning&&allIdle){sSpinning=false;document.getElementById('spinBtn').disabled=false;evalSlot();}
+
+  requestAnimationFrame(slotLoop);
+
+}
+
+ 
+
+function goSlot(gameId){
+    rouLoopActive = false; // გათიშე რულეტკის ციკლი
+    getAC();
+    const canvas = document.getElementById('slotCanvas');
+    if(!canvas) return;
+    sCtx = canvas.getContext('2d');
+    
+    initSReels();
+    showScreen('sSlot');
+    updateHeader(true,true);
+    
+    sWinLines=[]; sLastWin=0; slotLoopActive=true;
+    sizeSlot(); updateSlotUI();
+    
+    document.getElementById('winBar').textContent='';
+    document.getElementById('winBar').classList.remove('on');
+    document.getElementById('sWin').textContent='₾0.00';
+    
+    slotLastT = performance.now();
+    requestAnimationFrame(slotLoop);
+}
+
+ 
+
+function doSlotSpin(){
+
+  getAC();
+
+  if(sSpinning)return;
+
+  const u=getCur();if(!u)return;
+
+  const bet=SBETS[sBetIdx];
+
+  if(getBal(u)<bet){showWinBar('არასაკმარისი ბალანსი!');sndLose();return}
+
+  setBal(u,getBal(u)-bet);
+
+  setJack(getJack()+bet*.015);
+
+  sSpinning=true;sWinLines=[];sLastWin=0;
+
+  document.getElementById('spinBtn').disabled=true;
+
+  document.getElementById('winBar').textContent='';
+
+  document.getElementById('winBar').classList.remove('on');
+
+  document.getElementById('sWin').textContent='₾0.00';
+
+  updateSlotUI();sndSpin();
+
+  const now=performance.now();
+
+  sReels.forEach((r,i)=>{r.phase='spin';r.vel=5;r.stopTime=now+500+i*240});
+
+}
+
+ 
+function evalSlot() {
+  const u = getCur();
+  if (!u) return;
+  const bet = SBETS[sBetIdx];
+
+  const grid = sReels.map(r => {
+    const si = Math.floor(r.offset / STEP);
+    return Array.from({ length: NROW }, (_, row) => r.strip[((SLEN - si + row) % SLEN + SLEN) % SLEN]);
+  });
+
+  let totalWin = 0;
+  const wonLines = [];
+
+  LINES.forEach(line => {
+    const syms = line.map((row, col) => grid[col][row]);
+    let base = null;
+    let count = 0;
+
+    for (let i = 0; i < syms.length; i++) {
+      const s = SM[syms[i]];
+      if (!s) break;
+      if (!base && !s.isWild && !s.isScat) base = syms[i];
+      if (s.isWild || syms[i] === base) {
+        count++;
+      } else {
+        break;
+      }
+    }
+
+    if (count >= 3 && base) {
+      const pay = SM[base].pay[count];
+      if (pay) {
+        totalWin += bet * pay;
+        wonLines.push(line);
+      }
+    }
+  });
+
+  const sc = grid.flat().filter(s => s === 'scat').length;
+  if (sc >= 3) {
+    const sp = SM['scat'].pay[Math.min(sc, 5)];
+    if (sp) totalWin += bet * sp;
+  }
+
+  if (Math.random() < .0008) {
+    const j = getJack();
+    totalWin += j;
+    setJack(600 + Math.random() * 1400);
+    showMega('ჯეკპოტი! 🎰', j);
+    spawnCoins(innerWidth / 2, innerHeight / 2, 80);
+  }
+
+  if (totalWin > 0) {
+    sLastWin = totalWin;
+    setBal(u, getBal(u) + totalWin);
+    sWinLines = wonLines;
+    showWinBar('🏆 გამარჯვება! +' + fmtM(totalWin));
+    document.getElementById('sWin').textContent = fmtM(totalWin);
+    if (totalWin >= bet * 15) {
+      showMega('დიდი მოგება! 💰', totalWin);
+      spawnCoins(innerWidth / 2, 300, 70);
+    } else {
+      sndWin();
+      spawnCoins(innerWidth / 2, 300, 28);
+    }
+    addHist({ game: 'სლოტი', win: totalWin });
+  } else {
+    sWinLines = [];
+    showWinBar('');
+    sndLose();
+    addHist({ game: 'სლოტი', win: -bet });
+  }
+  updateSlotUI();
+}
+
+ 
+
+function showWinBar(msg){
+
+  const el=document.getElementById('winBar');
+
+  el.textContent=msg;el.classList.remove('on');void el.offsetWidth;el.classList.add('on');
+
+}
+
+function updateSlotUI(){
+
+  const u=getCur();if(!u)return;
+
+  const bet=SBETS[sBetIdx];
+
+  document.getElementById('sBal').textContent=fmtM(getBal(u));
+
+  document.getElementById('sBet').textContent=fmtM(bet);
+
+  document.getElementById('betAmt').textContent=fmtM(bet);
+
+  document.getElementById('grandJp').textContent=fmtM(getJack());
+
+}
+
+function chBet(d){if(sSpinning)return;sBetIdx=Math.max(0,Math.min(SBETS.length-1,sBetIdx+d));updateSlotUI()}
+
+ 
+
+/* =====================================================
+
+   ROULETTE ENGINE
+
+===================================================== */
+
+/* =====================================================
+ /* =====================================================
+   ROULETTE ENGINE (გამართული ვერსია)
+===================================================== */
+/* =====================================================
+   ROULETTE ENGINE (სრულად გამართული ვერსია)
+===================================================== */
+
+let rouCtx, rouSZ;
+let rouSpinning = false;
+let rouAngle = 0;
+let rouVel = 0;
+let ballAngle = 0;
+let ballVel = 0;
+let ballR = 0;
+let rouResult = null;
+let rouLoopActive = false;
+let curChip = 1;
+let rBets = {};
+
+const WHEEL = [0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26];
+const REDS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
+
+function goRoulette() {
+    slotLoopActive = false; // გათიშე სლოტის ციკლი
+    showScreen('sRou');
+    updateHeader(true, true);
+    
+    const canvas = document.getElementById('rouCanvas');
+    if (!canvas) return;
+    rouCtx = canvas.getContext('2d');
+    
+    // ზომის სწორი განსაზღვრა
+    const container = canvas.parentElement;
+    rouSZ = Math.min(container.clientWidth - 40, 400);
+    if (rouSZ <= 0) rouSZ = 350; // მინიმალური ზომა თუ კონტეინერი ვერ ზომავს
+    
+    canvas.width = rouSZ;
+    canvas.height = rouSZ;
+    
+    buildBetTable(); // მაგიდის აშენება
+    rouLoopActive = true;
+    requestAnimationFrame(rouLoop);
+}
+function initRou() {
+    const canvas = document.getElementById('rouCanvas');
+    if (!canvas) return;
+    rouCtx = canvas.getContext('2d');
+    const wrap = document.querySelector('.rou-left') || { clientWidth: 300 };
+    rouSZ = Math.min(wrap.clientWidth - 20, 300);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rouSZ * dpr; canvas.height = rouSZ * dpr;
+    canvas.style.width = rouSZ + 'px'; canvas.style.height = rouSZ + 'px';
+    rouCtx.scale(dpr, dpr);
+}
+
+// რულეტკის დატრიალების ფუნქცია (მიაბი შენს "ატრიალე" ღილაკს)
+function doRouSpin() {
+    if (rouSpinning || Object.keys(rBets).length === 0) return;
+    
+    rouSpinning = true;
+    rouVel = 0.1 + Math.random() * 0.05;
+    ballVel = 0.15 + Math.random() * 0.05;
+    ballAngle = Math.random() * Math.PI * 2;
+    
+    showRouMsg('ბურთი ტრიალებს...', false);
+    if (window.sndSpin) sndSpin();
+}
+
+function rouLoop(ts) {
+    if (!rouLoopActive || !rouCtx) return;
+    
+    // დაამატე ეს უსაფრთხოების ზომა:
+    const currentSZ = rouSZ || 300; 
+    rouCtx.clearRect(0, 0, currentSZ, currentSZ);
+    const cx = currentSZ / 2, cy = currentSZ / 2;
+    const radius = Math.max(10, currentSZ / 2 - 10); // რადიუსი მინუსში აღარ წავა
+
+    // 1. ბორბლის მოძრაობის ლოგიკა
+    if (rouSpinning || ballVel > 0.005) {
+        rouAngle += rouVel; rouVel *= 0.998;
+        ballAngle -= ballVel; ballVel *= 0.992;
+        
+        // ბურთი ნელ-ნელა ეშვება ნომრებისკენ
+        const R = radius * 0.9;
+        ballR = R * 0.85; 
+
+        if (ballVel < 0.005 && rouSpinning) {
+            rouSpinning = false;
+            setTimeout(findResult, 500);
+        }
+    }
+
+    // 2. ბორბლის (სექტორების და ციფრების) ხატვა
+    rouCtx.save();
+    rouCtx.translate(cx, cy);
+    rouCtx.rotate(rouAngle); // ბორბალი ტრიალებს
+
+    const slice = (Math.PI * 2) / 37;
+
+    for (let i = 0; i < 37; i++) {
+        const ang = i * slice;
+        
+        // სექტორის ფონი
+        rouCtx.beginPath();
+        rouCtx.moveTo(0, 0);
+        rouCtx.arc(0, 0, radius, ang, ang + slice);
+        rouCtx.closePath();
+        
+        // ფერების განსაზღვრა
+        const num = WHEEL[i];
+        if (num === 0) rouCtx.fillStyle = '#008800'; // მწვანე
+        else if (REDS.has(num)) rouCtx.fillStyle = '#aa0000'; // წითელი
+        else rouCtx.fillStyle = '#111111'; // შავი
+        
+        rouCtx.fill();
+        rouCtx.strokeStyle = 'rgba(212, 160, 23, 0.4)';
+        rouCtx.lineWidth = 1;
+        rouCtx.stroke();
+
+        // ციფრების დაწერა ბორბალზე
+        rouCtx.save();
+        rouCtx.rotate(ang + slice / 2);
+        rouCtx.fillStyle = "#fff";
+        rouCtx.font = `bold ${rouSZ / 22}px Cinzel`;
+        rouCtx.textAlign = "right";
+        rouCtx.fillText(num, radius - 15, 5); // ციფრები კიდესთან ახლოს
+        rouCtx.restore();
+    }
+
+    // შიდა ოქროსფერი რგოლი (დეკორაცია)
+    rouCtx.beginPath();
+    rouCtx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+    rouCtx.strokeStyle = '#d4a017';
+    rouCtx.lineWidth = 3;
+    rouCtx.stroke();
+    
+    rouCtx.restore();
+
+    // 3. ბურთის ხატვა (ის არ ტრიალებს ბორბალთან ერთად, აქვს თავისი ტრაექტორია)
+    if (ballVel > 0.001 || rouSpinning) {
+        const bx = cx + Math.cos(ballAngle) * ballR;
+        const by = cy + Math.sin(ballAngle) * ballR;
+        
+        // ბურთის ჩრდილი და ეფექტი
+        rouCtx.beginPath();
+        rouCtx.arc(bx, by, 6, 0, Math.PI * 2);
+        rouCtx.fillStyle = '#ffffff';
+        rouCtx.shadowBlur = 15;
+        rouCtx.shadowColor = "#ffffff";
+        rouCtx.fill();
+        rouCtx.shadowBlur = 0; // გავთიშოთ ჩრდილი სხვა ელემენტებისთვის
+    }
+
+    requestAnimationFrame(rouLoop);
+}
+function findResult() {
+    // მათემატიკურად გამოგვყავს რომელი ნომერია
+    const diff = (rouAngle - ballAngle) % (Math.PI * 2);
+    const idx = Math.floor(((diff < 0 ? diff + Math.PI * 2 : diff) / (Math.PI * 2)) * 37) % 37;
+    const res = WHEEL[idx];
+    
+    rouResult = res;
+    const el = document.getElementById('rouNumEl');
+    if (el) {
+        el.textContent = res;
+        el.style.display = 'inline-flex';
+        el.className = 'rou-num ' + (res === 0 ? 'grn-n' : (REDS.has(res) ? 'red-n' : 'blk-n'));
+    }
+    
+    checkRouWin(res);
+}
+
+function checkRouWin(res) {
+    let win = 0;
+    for (let [bet, amt] of Object.entries(rBets)) {
+        if (bet === 'n' + res) win += amt * 36;
+        else if (bet === 'red' && REDS.has(res)) win += amt * 2;
+        else if (bet === 'black' && res !== 0 && !REDS.has(res)) win += amt * 2;
+        else if (bet === 'even' && res !== 0 && res % 2 === 0) win += amt * 2;
+        else if (bet === 'odd' && res % 2 !== 0) win += amt * 2;
+    }
+
+    if (win > 0) {
+        const u = getCur();
+        setBal(u, getBal(u) + win);
+        showRouMsg('მოგება: ' + fmtM(win), true);
+        if (window.sndWin) sndWin();
+        if (win >= 100) showMega('დიდი მოგება!', win);
+    } else {
+        showRouMsg('სცადეთ თავიდან', false);
+        if (window.sndLose) sndLose();
+    }
+    
+    document.getElementById('rouLastWin').textContent = fmtM(win);
+    rBets = {};
+    setTimeout(updateRouUI, 1500);
+}
+
+function buildBetTable() {
+    const tbl = document.getElementById('betTable');
+    if (!tbl) return;
+    tbl.innerHTML = '';
+    
+    const mainRow = document.createElement('div');
+    mainRow.className = 'bt-row';
+
+    // 0 უჯრა
+    const zCell = document.createElement('div');
+    zCell.className = 'bt-cell gc';
+    zCell.style.cssText = 'min-width:40px; flex:0 0 40px;';
+    zCell.textContent = '0'; zCell.id = 'bc_n0';
+    zCell.onclick = () => placeBet('n0');
+    mainRow.appendChild(zCell);
+
+    const grid = document.createElement('div');
+    grid.style.flex = '1';
+    for (let r = 0; r < 12; r++) {
+        const row = document.createElement('div');
+        row.className = 'bt-row';
+        for (let c = 0; c < 3; c++) {
+            let n = r * 3 + c + 1;
+            let cell = document.createElement('div');
+            cell.className = 'bt-cell ' + (REDS.has(n) ? 'rc' : 'bc');
+            cell.textContent = n; cell.id = 'bc_n' + n;
+            cell.onclick = () => placeBet('n' + n);
+            row.appendChild(cell);
+        }
+        grid.appendChild(row);
+    }
+    mainRow.appendChild(grid);
+    tbl.appendChild(mainRow);
+    
+    // სპეციალური ფსონები
+    const sRow = document.createElement('div');
+    sRow.className = 'bt-row';
+    [['red','წითელი'],['black','შავი'],['even','ლუწი'],['odd','კენტი']].forEach(([k,l]) => {
+        const c = document.createElement('div');
+        c.className = 'bt-cell oc'; c.textContent = l; c.id = 'bc_' + k;
+        c.onclick = () => placeBet(k);
+        sRow.appendChild(c);
+    });
+    tbl.appendChild(sRow);
+}
+
+function placeBet(key) {
+    if (rouSpinning) return;
+    const u = getCur(); if(!u) return;
+    if (getBal(u) < curChip) { showRouMsg('არასაკმარისი ბალანსი', false); return; }
+    setBal(u, getBal(u) - curChip);
+    rBets[key] = (rBets[key] || 0) + curChip;
+    if (window.sndChip) sndChip();
+    refreshBetTable(); updateRouUI();
+}
+
+function selChip(v, el) {
+    curChip = v;
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('sel'));
+    el.classList.add('sel');
+}
+
+function updateRouUI() {
+    const tot = Object.values(rBets).reduce((a,b) => a + b, 0);
+    const el = document.getElementById('rouTotalBet');
+    if (el) el.textContent = fmtM(tot);
+    refreshBetTable();
+}
+
+function refreshBetTable() {
+    document.querySelectorAll('.bt-chip').forEach(c => c.remove());
+    Object.entries(rBets).forEach(([k, v]) => {
+        const cell = document.getElementById('bc_' + k);
+        if (cell) {
+            const chip = document.createElement('div');
+            chip.className = 'bt-chip'; chip.textContent = v;
+            cell.appendChild(chip);
+        }
+    });
+}
+
+function showRouMsg(m, w) {
+    const el = document.getElementById('rouWinMsg');
+    if (el) { el.textContent = m; el.style.color = w ? '#d4a017' : '#ccc'; }
+}
+
+function clearBets() {
+    if (rouSpinning) return;
+    const u = getCur();
+    let total = 0;
+    Object.values(rBets).forEach(v => total += v);
+    setBal(u, getBal(u) + total);
+    rBets = {};
+    updateRouUI();
+}
+/* =====================================================
+   სისტემური სტარტი
+===================================================== */
+(function(){
+  const u = typeof getCur === 'function' ? getCur() : null;
+  if(u) {
+      if (typeof goLobby === 'function') goLobby();
+  } else {
+      if (typeof showScreen === 'function') showScreen('sAuth');
+  }
+})();
+
+
+
+
+/* =====================================================
+
+   INIT & GLOBAL
+
+===================================================== */
+
+document.addEventListener('keydown',e=>{
+
+  if(e.code==='Space'&&document.getElementById('sSlot').classList.contains('active')){
+
+    e.preventDefault();doSlotSpin();
+
+  }
+
+});
+
+['lU','lP'].forEach(id=>{
+
+  document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin()});
+
+});
+
+['rN','rU','rP'].forEach(id=>{
+
+  document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doReg()});
+
+});
+
+// Jackpot ticker
+
+setInterval(()=>{
+
+  const a=document.getElementById('jpLobby');if(a)a.textContent=fmtM(getJack());
+
+  const b=document.getElementById('grandJp');if(b)b.textContent=fmtM(getJack());
+
+},3000);
+
+ 
+
+// Init
+
+(function(){
+
+  const u=getCur();
+
+  if(u)goLobby();
+
+  else showScreen('sAuth');
+
+})();
+ function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const txt = input.value.trim();
+    const user = firebase.auth().currentUser;
+
+    if (!txt || !user || !window.currentUserData) return;
+
+    db.ref('chat').push({
+        name: window.currentUserData.name,
+        message: txt,
+        time: Date.now()
+    });
+
+    input.value = '';
+}
+function initChat() {
+    if (!window.db || window.chatInitialized) return;
+    window.chatInitialized = true; // რომ ბევრჯერ არ ჩაირთოს
+
+    // მესიჯების მოსმენა და გამოჩენა
+    window.db.ref('chat').limitToLast(30).on('value', (snapshot) => {
+        const chatEl = document.getElementById('chatMessages');
+        if (!chatEl) return;
+        
+        let html = '';
+        const user = getCur();
+        const currentUserName = user ? getUsers()[user]?.name : null;
+
+        snapshot.forEach((child) => {
+            const m = child.val();
+            const isMe = m.name === currentUserName;
+            html += `
+                <div style="margin-bottom: 2px;">
+                    <b style="color:${isMe ? 'var(--gold2)' : '#c49bff'}">${m.name}:</b> 
+                    <span style="color:#eee">${m.text}</span>
+                </div>
+            `;
+        });
+        chatEl.innerHTML = html;
+        chatEl.scrollTop = chatEl.scrollHeight;
+    });
+
+    // --- ავტომატური წაშლა (2 წუთიანი ინტერვალით) ---
+    setInterval(() => {
+        if (window.db) {
+            const twoMinutesAgo = Date.now() - (2 * 60 * 1000); 
+            const chatRef = window.db.ref('chat');
+            
+            // ვპოულობთ მესიჯებს, რომელთა 'time' უფრო ნაკლებია ვიდრე 2 წუთის წინანდელი დრო
+            chatRef.orderByChild('time').endAt(twoMinutesAgo).once('value', (snapshot) => {
+                snapshot.forEach((child) => {
+                    child.ref.remove(); // ვშლით ძველ მესიჯს
+                });
+            });
+        }
+    }, 10000); // შემოწმება ხდება ყოველ 10 წამში
+
+    // Enter-ზე გაგზავნა
+    const input = document.getElementById('chatInput');
+    if (input) {
+        input.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendChatMessage();
+        });
+    }
+}
+
+</script>
+  
 </body>
+
 </html>
