@@ -838,52 +838,78 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 
 /* =====================================================
 
-   STORAGE & CORE
+   FIREBASE ONLY - NO LOCALSTORAGE
 
 ===================================================== */
 
-const SK={U:'ac_u3',C:'ac_c3',B:'ac_b3',J:'ac_j3',H:'ac_h3'};
+// Get current Firebase user
+const getCur = () => firebase.auth().currentUser;
 
-const ld=(k,d)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch{return d}};
+// Get current user's balance from window.currentUserData (synced from Firebase)
+const getBal_Sync = () => {
+    if (!window.currentUserData) return 0;
+    return Number(window.currentUserData.balance || 0);
+};
 
-const sv=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
-
-const getUsers=()=>ld(SK.U,{});
-
-const getCur=()=>localStorage.getItem(SK.C);
-
-const setCur=u=>u?localStorage.setItem(SK.C,u):localStorage.removeItem(SK.C);
-
-const getJack=()=>Number(ld(SK.J,800));
-
-const setJack=v=>sv(SK.J,Math.max(0,Math.round(v*100)/100));
-
-const getHist=()=>ld(SK.H,[]);
-
-const addHist=item=>{const h=getHist();h.unshift(item);if(h.length>60)h.pop();sv(SK.H,h)};
-
-
+// Set balance in Firebase
 function setBal(v) {
-    const user = firebase.auth().currentUser; // ვიღებთ ავტორიზებულ მომხმარებელს
-    if (!user) {
-        console.warn("მომხმარებელი არ არის ავტორიზებული!");
-        return;
-    }
-
-    const b = ld(SK.B, {});
+    const user = getCur();
+    if (!user) return;
+    
     const balance = Math.round(v * 100) / 100;
-    b[user.email] = balance; // ვინახავთ ლოკალურად
-    sv(SK.B, b);
-
-    // ვაგზავნით ბაზაში UID-ის გამოყენებით
     db.ref('players/' + user.uid).update({
         balance: balance,
         lastUpdate: Date.now()
-    }).catch((error) => {
-        console.error("სინქრონიზაციის შეცდომა:", error);
-    });
-
+    }).catch(err => console.error("Firebase balance update error:", err));
+    
     refreshBal();
+}
+
+// Get jackpot from Firebase
+const getJack = () => {
+    return new Promise((resolve) => {
+        const user = getCur();
+        if (!user) return resolve(800);
+        
+        db.ref('jackpot').get().then(snapshot => {
+            resolve(Number(snapshot.val() || 800));
+        }).catch(() => resolve(800));
+    });
+};
+
+// Set jackpot in Firebase
+function setJack(v) {
+    const user = getCur();
+    if (!user) return;
+    
+    const jp = Math.max(0, Math.round(v * 100) / 100);
+    db.ref('jackpot').set(jp).catch(err => console.error("Jackpot update error:", err));
+}
+
+// Get history from Firebase
+const getHist = () => {
+    return new Promise((resolve) => {
+        const user = getCur();
+        if (!user) return resolve([]);
+        
+        db.ref('players/' + user.uid + '/history').limitToLast(60).get().then(snapshot => {
+            const hist = [];
+            snapshot.forEach(child => hist.unshift(child.val()));
+            resolve(hist);
+        }).catch(() => resolve([]));
+    });
+};
+
+// Add to history in Firebase
+async function addHist(item) {
+    const user = getCur();
+    if (!user) return;
+    
+    const timestamp = Date.now();
+    db.ref('players/' + user.uid + '/history/' + timestamp).set({
+        ...item,
+        timestamp: timestamp
+    }).catch(err => console.error("History update error:", err));
 }
 function updateLeaderboard() {
     const lbList = document.getElementById('leaderboardList');
@@ -1025,59 +1051,37 @@ function goLobby(){
   showScreen('sLobby');
   updateHeader(false,true);
   
-  const jpEl = document.getElementById('jpLobby');
-  if(jpEl) jpEl.textContent=fmtM(getJack());
+  getJack().then(jp => {
+    const jpEl = document.getElementById('jpLobby');
+    if(jpEl) jpEl.textContent=fmtM(jp);
+  });
   
   renderHist();
   updateLeaderboard(); // რეიტინგის განახლება
   initChat();          // ჩათის ჩართვა
 }
-// ჩათის ჭკვიანი გასუფთავება (შლის 2 წუთზე ძველ მესიჯებს)
-function autoClearChat() {
-    if (!window.db) return;
-
-    const chatRef = window.db.ref('chat');
-    const now = Date.now();
-    const twoMinutesAgo = now - (2 * 60 * 1000); // 2 წუთი მილიწამებში
-
-    // ვეძებთ მესიჯებს, რომელთა დროც ნაკლებია (უფრო ძველია) ვიდრე 2 წუთის წინანდელი დრო
-    chatRef.orderByChild('time').endAt(twoMinutesAgo).once('value', (snapshot) => {
-        const updates = {};
-        snapshot.forEach((child) => {
-            // ვამზადებთ წასაშლელ სიაში
-            updates[child.key] = null;
-        });
-
-        // ერთიანად ვშლით ყველა ძველ მესიჯს
-        chatRef.update(updates).then(() => {
-            if (Object.keys(updates).length > 0) {
-                console.log("🧹 ძველი მესიჯები წაიშალა.");
-            }
-        });
-    });
-}
-
-// ვრთავთ ტაიმერს, რომელიც ყოველ 2 წუთში შეამოწმებს ბაზას
-setInterval(autoClearChat, 120000);
+// Chat cleanup is handled in initChat() with setInterval
 function addBalance(amt){
 
   const u=getCur();if(!u)return;
 
-  setBal(u,getBal(u)+amt);
+  const currentBal = getBal_Sync();
+  setBal(currentBal + amt);
 
   spawnCoins(innerWidth/2,80,30);playTone(880,.1,'sine',.06);
 
 }
 
-function renderHist(){
+async function renderHist(){
 
   const el=document.getElementById('histList');
 
-  const h=getHist().slice(0,12);
+  const h = await getHist();
+  const histItems = h.slice(0,12);
 
-  if(!h.length){el.innerHTML='<div style="font-size:12px;color:var(--muted)">ჯერ არ გათამაშებულა</div>';return}
+  if(!histItems.length){el.innerHTML='<div style="font-size:12px;color:var(--muted)">ჯერ არ გათამაშებულა</div>';return}
 
-  el.innerHTML=h.map(i=>`<div class="hist-item"><span>${i.game}</span><span class="${i.win>0?'hw':'hl'}">${i.win>0?'+':''}${fmtM(i.win)}</span></div>`).join('');
+  el.innerHTML=histItems.map(i=>`<div class="hist-item"><span>${i.game}</span><span class="${i.win>0?'hw':'hl'}">${i.win>0?'+':''}${fmtM(i.win)}</span></div>`).join('');
 
 }
 
@@ -1499,11 +1503,12 @@ function doSlotSpin(){
 
   const bet=SBETS[sBetIdx];
 
-  if(getBal(u)<bet){showWinBar('არასაკმარისი ბალანსი!');sndLose();return}
+  const currentBal = getBal_Sync();
+  if(currentBal < bet){showWinBar('არასაკმარისი ბალანსი!');sndLose();return}
 
-  setBal(u,getBal(u)-bet);
+  setBal(currentBal - bet);
 
-  setJack(getJack()+bet*.015);
+  getJack().then(jp => setJack(jp + bet*.015));
 
   sSpinning=true;sWinLines=[];sLastWin=0;
 
@@ -1578,7 +1583,8 @@ function evalSlot() {
 
   if (totalWin > 0) {
     sLastWin = totalWin;
-    setBal(u, getBal(u) + totalWin);
+    const currentBal = getBal_Sync();
+    setBal(currentBal + totalWin);
     sWinLines = wonLines;
     showWinBar('🏆 გამარჯვება! +' + fmtM(totalWin));
     document.getElementById('sWin').textContent = fmtM(totalWin);
@@ -1615,13 +1621,17 @@ function updateSlotUI(){
 
   const bet=SBETS[sBetIdx];
 
-  document.getElementById('sBal').textContent=fmtM(getBal(u));
+  document.getElementById('sBal').textContent=fmtM(getBal_Sync());
 
   document.getElementById('sBet').textContent=fmtM(bet);
 
   document.getElementById('betAmt').textContent=fmtM(bet);
 
-  document.getElementById('grandJp').textContent=fmtM(getJack());
+  // Get jackpot asynchronously
+  getJack().then(jp => {
+    const jpEl = document.getElementById('grandJp');
+    if(jpEl) jpEl.textContent=fmtM(jp);
+  });
 
 }
 
@@ -1820,7 +1830,8 @@ function checkRouWin(res) {
 
     if (win > 0) {
         const u = getCur();
-        setBal(u, getBal(u) + win);
+        const currentBal = getBal_Sync();
+        setBal(currentBal + win);
         showRouMsg('მოგება: ' + fmtM(win), true);
         if (window.sndWin) sndWin();
         if (win >= 100) showMega('დიდი მოგება!', win);
@@ -1883,8 +1894,9 @@ function buildBetTable() {
 function placeBet(key) {
     if (rouSpinning) return;
     const u = getCur(); if(!u) return;
-    if (getBal(u) < curChip) { showRouMsg('არასაკმარისი ბალანსი', false); return; }
-    setBal(u, getBal(u) - curChip);
+    const currentBal = getBal_Sync();
+    if (currentBal < curChip) { showRouMsg('არასაკმარისი ბალანსი', false); return; }
+    setBal(currentBal - curChip);
     rBets[key] = (rBets[key] || 0) + curChip;
     if (window.sndChip) sndChip();
     refreshBetTable(); updateRouUI();
@@ -1925,7 +1937,8 @@ function clearBets() {
     const u = getCur();
     let total = 0;
     Object.values(rBets).forEach(v => total += v);
-    setBal(u, getBal(u) + total);
+    const currentBal = getBal_Sync();
+    setBal(currentBal + total);
     rBets = {};
     updateRouUI();
 }
@@ -1976,25 +1989,16 @@ document.addEventListener('keydown',e=>{
 
 setInterval(()=>{
 
-  const a=document.getElementById('jpLobby');if(a)a.textContent=fmtM(getJack());
-
-  const b=document.getElementById('grandJp');if(b)b.textContent=fmtM(getJack());
+  getJack().then(jp => {
+    const a=document.getElementById('jpLobby');if(a)a.textContent=fmtM(jp);
+    const b=document.getElementById('grandJp');if(b)b.textContent=fmtM(jp);
+  });
 
 },3000);
 
  
 
-// Init
-
-(function(){
-
-  const u=getCur();
-
-  if(u)goLobby();
-
-  else showScreen('sAuth');
-
-})();
+// Init is handled by firebase.auth().onAuthStateChanged upper in the code
  function sendChatMessage() {
     const input = document.getElementById('chatInput');
     const txt = input.value.trim();
@@ -2012,7 +2016,7 @@ setInterval(()=>{
 }
 function initChat() {
     if (!window.db || window.chatInitialized) return;
-    window.chatInitialized = true; // რომ ბევრჯერ არ ჩაირთოს
+    window.chatInitialized = true;
 
     // მესიჯების მოსმენა და გამოჩენა
     window.db.ref('chat').limitToLast(30).on('value', (snapshot) => {
@@ -2021,7 +2025,7 @@ function initChat() {
         
         let html = '';
         const user = getCur();
-        const currentUserName = user ? getUsers()[user]?.name : null;
+        const currentUserName = window.currentUserData?.name;
 
         snapshot.forEach((child) => {
             const m = child.val();
@@ -2029,7 +2033,7 @@ function initChat() {
             html += `
                 <div style="margin-bottom: 2px;">
                     <b style="color:${isMe ? 'var(--gold2)' : '#c49bff'}">${m.name}:</b> 
-                    <span style="color:#eee">${m.text}</span>
+                    <span style="color:#eee">${m.message || ''}</span>
                 </div>
             `;
         });
@@ -2043,14 +2047,13 @@ function initChat() {
             const twoMinutesAgo = Date.now() - (2 * 60 * 1000); 
             const chatRef = window.db.ref('chat');
             
-            // ვპოულობთ მესიჯებს, რომელთა 'time' უფრო ნაკლებია ვიდრე 2 წუთის წინანდელი დრო
             chatRef.orderByChild('time').endAt(twoMinutesAgo).once('value', (snapshot) => {
                 snapshot.forEach((child) => {
-                    child.ref.remove(); // ვშლით ძველ მესიჯს
+                    child.ref.remove();
                 });
             });
         }
-    }, 10000); // შემოწმება ხდება ყოველ 10 წამში
+    }, 10000);
 
     // Enter-ზე გაგზავნა
     const input = document.getElementById('chatInput');
