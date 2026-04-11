@@ -862,7 +862,6 @@ const getHist=()=>ld(SK.H,[]);
 
 const addHist=item=>{const h=getHist();h.unshift(item);if(h.length>60)h.pop();sv(SK.H,h)};
 
-function getBal(u){const b=ld(SK.B,{});if(b[u]==null){b[u]=500;sv(SK.B,b)}return Number(b[u])}
 
 function setBal(v) {
     const user = firebase.auth().currentUser; // ვიღებთ ავტორიზებულ მომხმარებელს
@@ -918,18 +917,6 @@ function updateLeaderboard() {
 function fmtM(n){return Number(n).toFixed(2)+' ₾'}
 
  
-
-function refreshBal(){
-
-  const u=getCur();if(!u)return;
-
-  const v=fmtM(getBal(u));
-
-  const el=document.getElementById('balVal');if(el)el.textContent=v;
-
-  const sb=document.getElementById('sBal');if(sb)sb.textContent=v;
-
-}
 
  
 
