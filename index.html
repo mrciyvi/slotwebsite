@@ -815,27 +815,26 @@ const addHist=item=>{const h=getHist();h.unshift(item);if(h.length>60)h.pop();sv
 
 function getBal(u){const b=ld(SK.B,{});if(b[u]==null){b[u]=500;sv(SK.B,b)}return Number(b[u])}
 
-function setBal(u, v) {
-    // 1. ლოკალური შენახვა (რომ საიტმა სწრაფად იმუშაოს)
-    const b = ld(SK.B, {});
-    b[u] = Math.round(v * 100) / 100;
-    sv(SK.B, b); 
-    
-    // 2. ღრუბელში გაგზავნა (რომ მეგობარმა დაინახოს)
-    const userData = getUsers()[u];
-    if (userData) {
-        db.ref('players/' + u).set({
-            username: u,
-            name: userData.name,
-            balance: b[u],
-            lastUpdate: Date.now()
-        }).then(() => {
-            console.log("მონაცემები სინქრონიზებულია!");
-        }).catch((error) => {
-            console.error("სინქრონიზაციის შეცდომა:", error);
-        });
+function setBal(v) {
+    const user = firebase.auth().currentUser; // ვიღებთ ავტორიზებულ მომხმარებელს
+    if (!user) {
+        console.warn("მომხმარებელი არ არის ავტორიზებული!");
+        return;
     }
-    
+
+    const b = ld(SK.B, {});
+    const balance = Math.round(v * 100) / 100;
+    b[user.email] = balance; // ვინახავთ ლოკალურად
+    sv(SK.B, b);
+
+    // ვაგზავნით ბაზაში UID-ის გამოყენებით
+    db.ref('players/' + user.uid).update({
+        balance: balance,
+        lastUpdate: Date.now()
+    }).catch((error) => {
+        console.error("სინქრონიზაციის შეცდომა:", error);
+    });
+
     refreshBal();
 }
 function updateLeaderboard() {
@@ -949,29 +948,32 @@ function doLogin() {
 
 // --- რეგისტრაცია ---
 function doReg() {
-  const n = document.getElementById('rN').value.trim();
-  const u = document.getElementById('rU').value.trim() + "@casino.com"; // ვქმნით ვირტუალურ იმეილს
-  const p = document.getElementById('rP').value;
+    const n = document.getElementById('rN').value.trim();
+    const u = document.getElementById('rU').value.trim() + "@casino.com";
+    const p = document.getElementById('rP').value;
 
-  if (!n || !u || p.length < 6) {
-    document.getElementById('rMsg').textContent = 'პაროლი უნდა იყოს მინ. 6 სიმბოლო';
-    return;
-  }
+    if (!n || !u || p.length < 6) {
+        document.getElementById('rMsg').textContent = 'პაროლი მინ. 6 სიმბოლო!';
+        return;
+    }
 
-  firebase.auth().createUserWithEmailAndPassword(u, p)
-    .then((userCredential) => {
-      const user = userCredential.user;
-      // ვინახავთ დამატებით ინფორმაციას ბაზაში UID-ის მიხედვით
-      db.ref('players/' + user.uid).set({
-        name: n,
-        balance: 500,
-        createdAt: Date.now()
-      });
-      goLobby();
-    })
-    .catch((error) => {
-      document.getElementById('rMsg').textContent = "შეცდომა: " + error.message;
-    });
+    firebase.auth().createUserWithEmailAndPassword(u, p)
+        .then((userCredential) => {
+            const user = userCredential.user;
+            // ვინახავთ მონაცემებს UID-ით
+            return db.ref('players/' + user.uid).set({
+                name: n,
+                balance: 500,
+                username: u,
+                createdAt: Date.now()
+            });
+        })
+        .then(() => {
+            goLobby();
+        })
+        .catch((error) => {
+            document.getElementById('rMsg').textContent = "შეცდომა: " + error.message;
+        });
 }
 function doLogout(){setCur(null);slotLoopActive=false;rouLoopActive=false;showScreen('sAuth');updateHeader(false,false)}
 
