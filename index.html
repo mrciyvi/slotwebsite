@@ -490,6 +490,51 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 
 }
 
+/* === POKER === */
+.poker-wrap{display:flex;flex-direction:column;height:calc(100vh - 57px);gap:10px;padding:10px}
+
+.poker-table{flex:1;background:linear-gradient(135deg,#0a3a1a,#051a0a);border-radius:20px;border:3px solid var(--gold);padding:20px;position:relative;box-shadow:0 0 40px rgba(212,160,23,.2);overflow:hidden}
+
+.poker-players{position:relative;width:100%;height:100%;pointer-events:none}
+
+.poker-seat{background:rgba(0,0,0,.4);border:2px solid var(--border);border-radius:50%;width:100px;height:100px;display:flex;align-items:center;justify-content:center;flex-direction:column;font-size:11px;color:var(--text);text-align:center;padding:5px;pointer-events:all;cursor:pointer;transition:all .3s}
+
+.poker-seat:hover{border-color:var(--gold);background:rgba(212,160,23,.1)}
+
+.poker-seat.active{background:rgba(212,160,23,.15);border-color:var(--gold2)}
+
+.poker-seat.dealer{border-color:#ffaa00;background:rgba(255,170,0,.15)}
+
+.poker-seat .seat-name{font-weight:bold;color:var(--gold2);margin-bottom:3px}
+
+.poker-seat .seat-chips{font-size:10px;color:var(--muted)}
+
+.poker-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;z-index:5}
+
+.poker-community{display:flex;gap:5px}
+
+.card-display{width:50px;height:70px;background:white;border-radius:6px;border:2px solid #333;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:18px;box-shadow:0 4px 8px rgba(0,0,0,.6)}
+
+.poker-section{display:flex;flex-direction:column;gap:10px;padding:10px;background:rgba(0,0,0,.4);border-radius:15px}
+
+.poker-myhand{display:flex;gap:10px;justify-content:center;margin-bottom:10px}
+
+.poker-actions{display:flex;flex-direction:column;gap:8px}
+
+.pbtn{padding:10px 14px;border-radius:8px;border:1px solid var(--gold);background:rgba(212,160,23,.15);color:var(--gold);font-family:'Noto Sans Georgian',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;white-space:nowrap}
+
+.pbtn:hover{background:rgba(212,160,23,.3);transform:translateY(-1px)}
+
+.pbtn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+
+.fold-btn{background:rgba(200,50,50,.2);border-color:#cc2200;color:#ff6666}
+
+.fold-btn:hover{background:rgba(200,50,50,.4)}
+
+.poker-bottom{padding:10px;background:rgba(0,0,0,.4);border-radius:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+
+
+
 </style>
 
 </head>
@@ -661,6 +706,22 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 
       </div>
 
+      <div class="game-card" onclick="goPokerLobby()">
+
+        <div class="game-thumb" style="font-size:48px">🃏</div>
+
+        <div class="game-info">
+
+          <div class="game-badge" style="background:rgba(155,109,255,.12);color:#c49bff">მულტიპლეერი</div>
+
+          <div class="game-name">Texas Hold'em Poker</div>
+
+          <div class="game-desc">რეალ-ტაიმ თამაში. 4 მოთამაშე, ჩიპები, ბ­­ლაინდები, ყველა რეგულაცია.</div>
+
+        </div>
+
+      </div>
+
     </div>
 
     <div class="lobby-btns">
@@ -744,7 +805,19 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 
 </div>
 
- 
+<!-- POKER LOBBY SCREEN -->
+<div class="screen" id="sPokerLobby">
+
+  <div style="max-width:800px; margin:0 auto; padding:20px;">
+    <h2 style="color:var(--gold2); margin-bottom:20px; text-align:center;">🃏 POKER TABLE - 4 SEATS</h2>
+    <div id="pokerLobbySeats" style="display:grid; grid-template-columns:repeat(2,1fr); gap:15px; margin-bottom:20px;"></div>
+    <div style="text-align:center;">
+      <button class="lbtn" onclick="goPokerGame()">მაგიდაზე წასვლა</button>
+      <button class="lbtn" onclick="goLobby()" style="background:rgba(100,100,100,.3);">ფიცებში</button>
+    </div>
+  </div>
+
+</div>
 
 <!-- ROULETTE -->
 
@@ -828,7 +901,64 @@ header{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify
 
 </div>
 
- 
+<!-- POKER SCREEN -->
+<div class="screen" id="sPoker">
+  <div class="poker-wrap">
+    <!-- POKER TABLE -->
+    <div class="poker-table">
+      <canvas id="pokerCanvas" style="display:block; width:100%; height:400px; background:#0a3a1a; border-radius:20px; border:3px solid var(--gold)"></canvas>
+      
+      <!-- PLAYERS AT TABLE -->
+      <div class="poker-players">
+        <div class="poker-seat" id="seat0" style="position:absolute; top:20px; left:50%; transform:translateX(-50%);"></div>
+        <div class="poker-seat" id="seat1" style="position:absolute; top:50%; right:20px; transform:translateY(-50%);"></div>
+        <div class="poker-seat" id="seat2" style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%);"></div>
+        <div class="poker-seat" id="seat3" style="position:absolute; top:50%; left:20px; transform:translateY(-50%);"></div>
+      </div>
+
+      <!-- POT & COMMUNITY CARDS -->
+      <div class="poker-center">
+        <div class="poker-pot" id="pokerPot" style="font-size:18px; font-weight:bold; color:var(--gold); text-shadow:0 0 15px var(--gold);">სულ: ₾0.00</div>
+        <div class="poker-community" id="pokeCommunity" style="display:flex; gap:5px; justify-content:center; margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- MY HAND & ACTIONS -->
+    <div class="poker-section">
+      <div class="poker-myhand" id="pokerMyHand"></div>
+      
+      <div class="poker-actions">
+        <div id="pokerStatus" style="color:var(--gold2); font-weight:bold; margin-bottom:10px; text-align:center;"></div>
+        
+        <div style="display:flex; gap:5px; flex-wrap:wrap;">
+          <button class="pbtn" id="checkBtn" onclick="pokerAction('check')" style="display:none">✓ Check</button>
+          <button class="pbtn" id="callBtn" onclick="pokerAction('call')" style="display:none">Call</button>
+          <button class="pbtn" id="raiseBtn" onclick="showRaiseInput()" style="display:none">Raise</button>
+          <button class="pbtn fold-btn" id="foldBtn" onclick="pokerAction('fold')" style="display:none">Fold</button>
+          <button class="pbtn" id="allinBtn" onclick="pokerAction('allin')" style="display:none">All In</button>
+        </div>
+
+        <div id="raiseInput" style="display:none; margin-top:10px;">
+          <input type="number" id="raiseVal" placeholder="თანხა" min="0" style="width:100%; padding:5px; border-radius:5px; border:1px solid var(--border);">
+          <div style="display:flex; gap:5px; margin-top:5px;">
+            <button class="pbtn" onclick="confirmRaise()" style="flex:1;">დადასტურება</button>
+            <button class="pbtn" onclick="cancelRaise()" style="flex:1; background:#666;">გაუქმება</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GAME INFO & CONTROLS -->
+    <div class="poker-bottom">
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="pbtn" onclick="startPokerRound()" id="startPokerBtn">თამაშის დაწყება</button>
+        <button class="pbtn" id="joinPokerBtn" onclick="joinPokerTable()" style="display:none">მაგიდის შეერთება</button>
+        <button class="pbtn" onclick="leavePokerGame()">წასვლა</button>
+      </div>
+      <div id="pokerInfo" style="color:var(--muted); font-size:12px; margin-top:10px;"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 
@@ -1061,6 +1191,366 @@ function goLobby(){
   initChat();          // ჩათის ჩართვა
 }
 // Chat cleanup is handled in initChat() with setInterval
+
+/* =====================================================
+   POKER GAME ENGINE - TEXAS HOLD'EM
+===================================================== */
+
+const RANKS = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+const SUITS = ['♠','♥','♦','♣'];
+
+let pokerState = {
+  gameId: null,
+  table: [],
+  community: [],
+  pot: 0,
+  currentBet: 0,
+  phase: 'waiting', // waiting, preflop, flop, turn, river, showdown
+  dealer: 0,
+  currentPlayer: 0,
+  myHand: [],
+  mySeat: -1,
+  playerBets: [0,0,0,0],
+  playerStacks: [0,0,0,0],
+  playerFolded: [false,false,false,false],
+  playerAllIn: [false,false,false,false],
+  sidePots: [],
+  winners: []
+};
+
+function goPokerLobby() {
+  slotLoopActive = false;
+  rouLoopActive = false;
+  showScreen('sPokerLobby');
+  updateHeader(false, true);
+  loadPokerTable();
+}
+
+function loadPokerTable() {
+  const user = getCur();
+  db.ref('pokerGame').get().then(snap => {
+    if (snap.exists()) {
+      const game = snap.val();
+      pokerState.table = game.players || ['','','',''];
+      pokerState.gameId = 'main';
+      renderPokerLobby();
+    } else {
+      db.ref('pokerGame').set({
+        players: ['','','',''],
+        phase: 'waiting',
+        pot: 0,
+        community: [],
+        dealer: 0,
+        createdAt: Date.now()
+      });
+    }
+  });
+}
+
+function renderPokerLobby() {
+  const seatDiv = document.getElementById('pokerLobbySeats');
+  seatDiv.innerHTML = pokerState.table.map((seat, idx) => {
+    const userData = seat ? seat : 'ცარიელი';
+    const isMySeat = pokerState.mySeat === idx;
+    return `
+      <div style="background:var(--panel); border:2px solid ${isMySeat ? 'var(--gold)' : (seat ? 'var(--border)' : 'rgba(212,160,23,.3)')}; border-radius:12px; padding:20px; text-align:center; cursor:${!seat && pokerState.mySeat === -1 ? 'pointer' : 'default'}; transition:all .2s; ${!seat && pokerState.mySeat === -1 ? 'onclick="setupSeat(' + idx + ')"' : ''}">
+        <div style="font-size:18px; font-weight:bold; color:${seat ? 'var(--gold2)' : 'var(--muted)'}; margin-bottom:10px;">ადგილი ${idx + 1}</div>
+        <div style="color:#aaa">${userData}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function setupSeat(seatIdx) {
+  const user = getCur();
+  pokerState.mySeat = seatIdx;
+  pokerState.table[seatIdx] = window.currentUserData.name || 'Player';
+  pokerState.playerStacks[seatIdx] = getBal_Sync();
+  
+  db.ref('pokerGame/players/' + seatIdx).set(window.currentUserData.name).then(() => {
+    renderPokerLobby();
+  });
+}
+
+function goPokerGame() {
+  showScreen('sPoker');
+  updateHeader(true, true);
+  
+  // Real-time update
+  db.ref('pokerGame').on('value', snap => {
+    const game = snap.val();
+    if (game) {
+      pokerState.table = game.players || ['','','',''];
+      pokerState.community = game.community || [];
+      pokerState.pot = game.pot || 0;
+      pokerState.phase = game.phase || 'waiting';
+      pokerState.dealer = game.dealer || 0;
+      pokerState.currentPlayer = game.currentPlayer || 0;
+      updatePokerUI();
+    }
+  });
+}
+
+function startPokerRound() {
+  const activePlayers = pokerState.table.filter(p => p).length;
+  if (activePlayers < 2) {
+    alert('მინიმუმ 2 მოთამაშე!');
+    return;
+  }
+  
+  // დეთ ბილეთები
+  pokerState.myHand = generateHand();
+  pokerState.phase = 'preflop';
+  pokerState.pot = 0;
+  pokerState.currentBet = 0;
+  pokerState.playerBets = [0,0,0,0];
+  pokerState.playerFolded = [false,false,false,false];
+  pokerState.playerAllIn = [false,false,false,false];
+  pokerState.community = [];
+  
+  // Dealer & Blinds
+  const smallBlindIdx = (pokerState.dealer + 1) % 4;
+  const bigBlindIdx = (pokerState.dealer + 2) % 4;
+  pokerState.currentPlayer = (pokerState.dealer + 3) % 4;
+  
+  // Post blinds
+  pokerState.playerBets[smallBlindIdx] = 50;
+  pokerState.playerBets[bigBlindIdx] = 100;
+  pokerState.pot = 150;
+  pokerState.currentBet = 100;
+  
+  db.ref('pokerGame').update({
+    phase: 'preflop',
+    pot: 150,
+    currentBet: 100,
+    community: [],
+    dealer: pokerState.dealer
+  });
+  
+  updatePokerUI();
+}
+
+function generateHand() {
+  const hand = [];
+  while (hand.length < 2) {
+    const card = RANKS[Math.floor(Math.random() * RANKS.length)] + 
+                 SUITS[Math.floor(Math.random() * SUITS.length)];
+    if (!hand.includes(card)) hand.push(card);
+  }
+  return hand;
+}
+
+function pokerAction(action) {
+  if (pokerState.mySeat !== pokerState.currentPlayer) return;
+  
+  const bal = getBal_Sync();
+  
+  if (action === 'fold') {
+    pokerState.playerFolded[pokerState.mySeat] = true;
+    
+  } else if (action === 'check') {
+    if (pokerState.currentBet > pokerState.playerBets[pokerState.mySeat]) return;
+    
+  } else if (action === 'call') {
+    const amountNeeded = pokerState.currentBet - pokerState.playerBets[pokerState.mySeat];
+    if (bal < amountNeeded) return;
+    pokerState.playerBets[pokerState.mySeat] += amountNeeded;
+    pokerState.pot += amountNeeded;
+    setBal(bal - amountNeeded);
+    
+  } else if (action === 'allin') {
+    pokerState.pot += bal;
+    pokerState.playerBets[pokerState.mySeat] += bal;
+    pokerState.playerAllIn[pokerState.mySeat] = true;
+    setBal(0);
+  }
+  
+  nextPlayer();
+  updatePokerUI();
+}
+
+function showRaiseInput() {
+  document.getElementById('raiseInput').style.display = 'block';
+}
+
+function confirmRaise() {
+  const amount = Number(document.getElementById('raiseVal').value);
+  const bal = getBal_Sync();
+  
+  if (amount < pokerState.currentBet) {
+    alert('Raise უნდა იყოს მეტი!');
+    return;
+  }
+  if (amount > bal) {
+    alert('არასაკმარისი ბალანსი!');
+    return;
+  }
+  
+  pokerState.currentBet = amount;
+  pokerState.playerBets[pokerState.mySeat] = amount;
+  pokerState.pot += amount;
+  setBal(bal - amount);
+  
+  cancelRaise();
+  nextPlayer();
+  updatePokerUI();
+}
+
+function cancelRaise() {
+  document.getElementById('raiseInput').style.display = 'none';
+  document.getElementById('raiseVal').value = '';
+}
+
+function nextPlayer() {
+  let next = (pokerState.currentPlayer + 1) % 4;
+  let attempts = 0;
+  
+  while ((pokerState.playerFolded[next] || !pokerState.table[next]) && attempts < 4) {
+    next = (next + 1) % 4;
+    attempts++;
+  }
+  
+  pokerState.currentPlayer = next;
+  
+  if (attempts >= 4 || checkRoundEnd()) {
+    moveToNextPhase();
+  }
+}
+
+function checkRoundEnd() {
+  const activePlayers = pokerState.table.filter((p, i) => p && !pokerState.playerFolded[i]).length;
+  return activePlayers <= 1;
+}
+
+function moveToNextPhase() {
+  if (pokerState.phase === 'preflop') {
+    pokerState.community = [generateCard(), generateCard(), generateCard()]; // Flop
+    pokerState.phase = 'flop';
+    pokerState.currentBet = 0;
+    resetBets();
+    
+  } else if (pokerState.phase === 'flop') {
+    pokerState.community.push(generateCard()); // Turn
+    pokerState.phase = 'turn';
+    pokerState.currentBet = 0;
+    resetBets();
+    
+  } else if (pokerState.phase === 'turn') {
+    pokerState.community.push(generateCard()); // River
+    pokerState.phase = 'river';
+    pokerState.currentBet = 0;
+    resetBets();
+    
+  } else if (pokerState.phase === 'river') {
+    endGame();
+  }
+  
+  db.ref('pokerGame').update({
+    phase: pokerState.phase,
+    community: pokerState.community,
+    currentBet: 0
+  });
+  
+  updatePokerUI();
+}
+
+function resetBets() {
+  pokerState.playerBets = [0,0,0,0];
+  pokerState.currentPlayer = (pokerState.dealer + 1) % 4;
+}
+
+function generateCard() {
+  return RANKS[Math.floor(Math.random() * RANKS.length)] + 
+         SUITS[Math.floor(Math.random() * SUITS.length)];
+}
+
+function endGame() {
+  const activePlayers = pokerState.table.filter((p, i) => p && !pokerState.playerFolded[i]);
+  const winAmount = pokerState.pot / activePlayers.length;
+  
+  activePlayers.forEach((player, i) => {
+    const bal = getBal_Sync();
+    if (pokerState.mySeat === i) {
+      setBal(bal + winAmount);
+    }
+  });
+  
+  alert('თამაში დასრულდა! მოგება: ' + fmtM(winAmount));
+  
+  pokerState.dealer = (pokerState.dealer + 1) % 4;
+  pokerState.phase = 'waiting';
+  
+  db.ref('pokerGame').update({
+    phase: 'waiting',
+    pot: 0,
+    community: [],
+    dealer: pokerState.dealer
+  });
+  
+  updatePokerUI();
+}
+
+function updatePokerUI() {
+  // Update seats
+  for (let i = 0; i < 4; i++) {
+    const seat = document.getElementById('seat' + i);
+    const name = pokerState.table[i] || 'ცარიელი';
+    const chips = pokerState.playerStacks[i] || 0;
+    const isCurrent = i === pokerState.currentPlayer ? '→' : '';
+    const folded = pokerState.playerFolded[i] ? ' (F)' : '';
+    const bet = pokerState.playerBets[i] > 0 ? ` [$${pokerState.playerBets[i]}]` : '';
+    
+    seat.innerHTML = `
+      <div class="seat-name">${isCurrent} ${name} ${folded}</div>
+      <div class="seat-chips">${fmtM(chips)}${bet}</div>
+    `;
+    
+    if (i === pokerState.mySeat) {
+      seat.classList.add('active');
+    }
+    if (i === pokerState.dealer) {
+      seat.classList.add('dealer');
+    }
+  }
+  
+  // Pot
+  document.getElementById('pokerPot').textContent = 'სულ: ' + fmtM(pokerState.pot);
+  
+  // Community cards
+  const ccDiv = document.getElementById('pokeCommunity');
+  ccDiv.innerHTML = pokerState.community.map(c => `<div class="card-display">${c}</div>`).join('');
+  
+  // My hand
+  const mhDiv = document.getElementById('pokerMyHand');
+  mhDiv.innerHTML = pokerState.myHand.map(c => `<div class="card-display">${c}</div>`).join('');
+  
+  // Actions
+  const isMyTurn = pokerState.mySeat === pokerState.currentPlayer && pokerState.phase !== 'waiting';
+  document.getElementById('checkBtn').style.display = isMyTurn && pokerState.currentBet <= pokerState.playerBets[pokerState.mySeat] ? 'block' : 'none';
+  document.getElementById('callBtn').style.display = isMyTurn && pokerState.currentBet > 0 ? 'block' : 'none';
+  document.getElementById('raiseBtn').style.display = isMyTurn ? 'block' : 'none';
+  document.getElementById('foldBtn').style.display = isMyTurn ? 'block' : 'none';
+  document.getElementById('allInBtn').style.display = isMyTurn ? 'block' : 'none';
+  
+  // Status
+  const statusDiv = document.getElementById('pokerStatus');
+  if (pokerState.phase === 'waiting') {
+    statusDiv.textContent = '⏳ თამაშის დამწყებს ელოდება...';
+  } else if (isMyTurn) {
+    statusDiv.textContent = '🎯 თქვენი ქმედება!';
+  } else {
+    statusDiv.textContent = `⏳ ${pokerState.table[pokerState.currentPlayer]}-ის ქმედება...`;
+  }
+}
+
+function leavePokerGame() {
+  const seatIdx = pokerState.mySeat;
+  if (seatIdx !== -1) {
+    db.ref('pokerGame/players/' + seatIdx).set('');
+  }
+  pokerState.mySeat = -1;
+  goLobby();
+}
 function addBalance(amt){
 
   const u=getCur();if(!u)return;
